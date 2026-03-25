@@ -5,33 +5,39 @@ import {
 import styles from './ProductDetail.styles';
 import AISuggestionModal from './components/AISuggestionModal';
 
-const SIZES = [
-  { id: 'S', label: 'S', extra: 0 },
-  { id: 'M', label: 'M', extra: 8000 },
-  { id: 'XL', label: 'XL', extra: 12000 },
-  { id: '2XL', label: '2XL', extra: 16000 },
-];
+import productApi from '../../api/productApi';
 
 const ICE_LEVELS = ['Không đá', 'Ít đá', 'Mặc định', 'Nhiều đá'];
 const SUGAR_LEVELS = ['0%', '50%', '70%', '100%'];
-const TOPPINGS = [
-  { id: 1, name: 'Trân Châu Đen (Black Boba)', price: 5000 },
-  { id: 2, name: 'Trân Châu Hoàng Kim', price: 8000 },
-  { id: 3, name: 'Thạch Trái Cây (Fruit Jelly)', price: 10000 },
-  { id: 4, name: 'Kem Cheese (Cheese Foam)', price: 8000 },
-  { id: 5, name: 'Pudding Trứng (Egg Pudding)', price: 8000 },
-];
 
-const ProductDetail = ({ onNavigate, product, table }) => {
-  const [selectedSize, setSelectedSize] = useState('M');
+const ProductDetail = ({ onNavigate, product, table, onAddToCart }) => {
+  const [toppings, setToppings] = useState([]);
+  const [selectedVariantId, setSelectedVariantId] = useState(product?.danhSachBienThe?.[0]?.idBienThe);
   const [selectedIce, setSelectedIce] = useState('Mặc định');
   const [selectedSugar, setSelectedSugar] = useState('50%');
-  const [selectedToppings, setSelectedToppings] = useState([3]); // Default fruit jelly
+  const [selectedToppings, setSelectedToppings] = useState([]);
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState('');
   const [showAI, setShowAI] = useState(false);
 
+  React.useEffect(() => {
+    fetchToppings();
+  }, []);
+
+  const fetchToppings = async () => {
+    try {
+      const res = await productApi.getToppings();
+      const toppingsData = Array.isArray(res) ? res : (res.data || []);
+      setToppings(toppingsData);
+    } catch (err) {
+      console.error('Failed to fetch toppings:', err);
+    }
+  };
+
   if (!product) return null;
+
+  const variants = product.danhSachBienThe || [];
+  const selectedVariant = variants.find(v => v.idBienThe === selectedVariantId) || variants[0];
 
   const toggleTopping = (id) => {
     setSelectedToppings(prev =>
@@ -40,17 +46,42 @@ const ProductDetail = ({ onNavigate, product, table }) => {
   };
 
   const totalPrice = useMemo(() => {
-    const base = 30000; // Original price from mockup
-    const sizeExtra = SIZES.find(s => s.id === selectedSize)?.extra || 0;
+    const base = selectedVariant?.giaBan || 0;
     const toppingsExtra = selectedToppings.reduce((sum, id) => {
-      const t = TOPPINGS.find(item => item.id === id);
-      return sum + (t?.price || 0);
+      // Find topping and its variant price (assuming toppings have 1 variant)
+      const t = toppings.find(item => item.idSanPham === id);
+      const toppingPrice = t?.danhSachBienThe?.[0]?.giaBan || 0;
+      return sum + toppingPrice;
     }, 0);
-    return (base + sizeExtra + toppingsExtra) * quantity;
-  }, [selectedSize, selectedToppings, quantity]);
+    return (base + toppingsExtra) * quantity;
+  }, [selectedVariant, selectedToppings, quantity, toppings]);
 
   const handleBack = () => onNavigate('OrderMenu', { table });
-  const handleConfirm = () => onNavigate('OrderSummary', { table });
+  const handleConfirm = () => {
+    const cartItem = {
+      idSanPham: product.idSanPham,
+      tenSanPham: product.tenSanPham,
+      duongDanAnh: product.duongDanAnh,
+      variant: selectedVariant,
+      ice: selectedIce,
+      sugar: selectedSugar,
+      toppings: selectedToppings.map(id => {
+        const t = toppings.find(item => item.idSanPham === id);
+        return {
+          idSanPham: t.idSanPham,
+          tenSanPham: t.tenSanPham,
+          price: t.danhSachBienThe?.[0]?.giaBan || 0,
+          idBienThe: t.danhSachBienThe?.[0]?.idBienThe
+        };
+      }),
+      quantity,
+      price: totalPrice / quantity, // unit price with options
+      total: totalPrice,
+      note
+    };
+    onAddToCart && onAddToCart(cartItem);
+    onNavigate('OrderMenu', { table });
+  };
 
   return (
     <View style={styles.container}>
@@ -61,7 +92,7 @@ const ProductDetail = ({ onNavigate, product, table }) => {
         <View style={styles.headerContainer}>
           <View style={styles.headerBg} />
           <View style={styles.imageWrapper}>
-            <Image source={{ uri: product.uri }} style={styles.productImage} resizeMode="cover" />
+            <Image source={{ uri: product.duongDanAnh || 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400' }} style={styles.productImage} resizeMode="cover" />
           </View>
           <Pressable style={styles.backBtn} onPress={handleBack}>
             <Text style={styles.backBtnArrow}>‹</Text>
@@ -70,15 +101,15 @@ const ProductDetail = ({ onNavigate, product, table }) => {
 
         {/* Product Info */}
         <View style={styles.infoSection}>
-          <Text style={styles.productName}>{product.name}</Text>
+          <Text style={styles.productName}>{product.tenSanPham}</Text>
           <View style={styles.priceRow}>
             <Text style={styles.descText}>
-              Hương trà xanh dịu nhẹ hòa cùng vị sữa ngọt vừa phải, tạo nên cảm giác thơm ngon và dễ uống.
+              {product.moTa || 'Hương trà xanh dịu nhẹ hòa cùng vị sữa ngọt vừa phải, tạo nên cảm giác thơm ngon và dễ uống.'}
             </Text>
             <View style={styles.vDivider} />
             <View style={styles.basePriceGroup}>
-              <Text style={styles.basePriceLabel}>Giá Gốc: </Text>
-              <Text style={styles.basePriceValue}>30,000 VND</Text>
+              <Text style={styles.basePriceLabel}>Giá: </Text>
+              <Text style={styles.basePriceValue}>{new Intl.NumberFormat('vi-VN').format(selectedVariant?.giaBan || 0)} VND</Text>
             </View>
           </View>
         </View>
@@ -94,20 +125,20 @@ const ProductDetail = ({ onNavigate, product, table }) => {
           </View>
         </View>
         <View style={styles.sizeTrack}>
-          {SIZES.map(s => (
+          {variants.map(v => (
             <Pressable
-              key={s.id}
-              style={[styles.sizeBtn, selectedSize === s.id && styles.sizeBtnActive]}
-              onPress={() => setSelectedSize(s.id)}>
-              <Text style={[styles.sizeText, selectedSize === s.id && styles.sizeTextActive]}>{s.label}</Text>
+              key={v.idBienThe}
+              style={[styles.sizeBtn, selectedVariantId === v.idBienThe && styles.sizeBtnActive]}
+              onPress={() => setSelectedVariantId(v.idBienThe)}>
+              <Text style={[styles.sizeText, selectedVariantId === v.idBienThe && styles.sizeTextActive]}>{v.tenKichCo}</Text>
             </Pressable>
           ))}
         </View>
         <View style={styles.sizePriceRow}>
-          {SIZES.map(s => (
-            <View key={s.id} style={styles.sizePriceItem}>
-              <Text style={[styles.sizePriceText, selectedSize === s.id && styles.sizePriceTextActive]}>
-                +{s.extra.toLocaleString('vi-VN')}
+          {variants.map(v => (
+            <View key={v.idBienThe} style={styles.sizePriceItem}>
+              <Text style={[styles.sizePriceText, selectedVariantId === v.idBienThe && styles.sizePriceTextActive]}>
+                {new Intl.NumberFormat('vi-VN').format(v.giaBan)}
               </Text>
             </View>
           ))}
@@ -161,16 +192,17 @@ const ProductDetail = ({ onNavigate, product, table }) => {
           </View>
         </View>
         <View style={styles.toppingList}>
-          {TOPPINGS.map(t => {
-            const isActive = selectedToppings.includes(t.id);
+          {toppings.map(t => {
+            const isActive = selectedToppings.includes(t.idSanPham);
+            const toppingPrice = t.danhSachBienThe?.[0]?.giaBan || 0;
             return (
-              <Pressable key={t.id} style={styles.toppingItem} onPress={() => toggleTopping(t.id)}>
+              <Pressable key={t.idSanPham} style={styles.toppingItem} onPress={() => toggleTopping(t.idSanPham)}>
                 <View style={[styles.checkbox, isActive && styles.checkboxActive]} />
                 <View style={[styles.toppingBox, isActive && styles.toppingBoxActive]}>
-                  <Text style={[styles.toppingName, isActive && styles.toppingNameActive]}>{t.name}</Text>
+                  <Text style={[styles.toppingName, isActive && styles.toppingNameActive]}>{t.tenSanPham}</Text>
                 </View>
                 <Text style={[styles.toppingPrice, isActive && styles.toppingPriceActive]}>
-                  +{t.price.toLocaleString('vi-VN')}
+                  +{new Intl.NumberFormat('vi-VN').format(toppingPrice)}
                 </Text>
               </Pressable>
             );
@@ -228,10 +260,10 @@ const ProductDetail = ({ onNavigate, product, table }) => {
             <Text style={styles.totalPriceValue}>{totalPrice.toLocaleString('vi-VN')}đ</Text>
           </View>
           <Pressable style={styles.resetBtn} onPress={() => {
-            setSelectedSize('M');
+            setSelectedVariantId(variants[0]?.idBienThe);
             setSelectedIce('Mặc định');
             setSelectedSugar('50%');
-            setSelectedToppings([3]);
+            setSelectedToppings([]);
             setQuantity(1);
             setNote('');
           }}>

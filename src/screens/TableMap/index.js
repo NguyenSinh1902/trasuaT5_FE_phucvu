@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, StatusBar } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import styles from './TableMap.styles';
@@ -9,7 +9,10 @@ import OccupiedTableSheet from './components/OccupiedTableSheet';
 import ReserveTableSheet from './components/ReserveTableSheet';
 import ReservedTableSheet from './components/ReservedTableSheet';
 import EditReserveSheet from './components/EditReserveSheet';
+import InvoiceDetailSheet from './components/InvoiceDetailSheet';
 import UpdateGuestSheet from './components/UpdateGuestSheet';
+import tableApi from '../../api/tableApi';
+import reservationApi from '../../api/reservationApi';
 
 // ===================== MOCK DATA =====================
 const mockTables = [
@@ -29,8 +32,8 @@ const mockTables = [
 
 const getStatusStyle = (status) => {
   switch (status) {
-    case 'occupied': return { bg: 'rgba(139,163,103,0.18)', border: 'rgba(139,163,103,0.4)', color: '#8BA367', label: 'Có khách' };
-    case 'reserved': return { bg: 'rgba(255,215,0,0.18)', border: 'rgba(255,215,0,0.4)', color: '#FFD700', label: 'Đã đặt' };
+    case 'CO_KHACH': return { bg: 'rgba(139,163,103,0.18)', border: 'rgba(139,163,103,0.4)', color: '#8BA367', label: 'Có khách' };
+    case 'DA_DAT': return { bg: 'rgba(255,215,0,0.18)', border: 'rgba(255,215,0,0.4)', color: '#FFD700', label: 'Đã đặt' };
     default: return { bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.5)', label: 'Trống' };
   }
 };
@@ -43,14 +46,57 @@ const TableMap = ({ onNavigate }) => {
   const [selectedTable, setSelectedTable] = useState(null);   // empty table
   const [reserveTable, setReserveTable] = useState(null);     // reserve form
   const [occupiedTable, setOccupiedTable] = useState(null);   // occupied table
-  const [reservedTable, setReservedTable] = useState(null);   // reserved table info
-  const [editReserveTable, setEditReserveTable] = useState(null); // edit reservation
-  const [updateGuestTable, setUpdateGuestTable] = useState(null); // update guest count
+  const [updateGuestTable, setUpdateGuestTable] = useState(null);
+  const [reservedTable, setReservedTable] = useState(null);
+  const [editReserveTable, setEditReserveTable] = useState(null);
+  const [invoiceTable, setInvoiceTable] = useState(null); // edit reservation
+  const [tables, setTables] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchTables();
+
+    // Auto-refresh every 1 minute to update "Đã ngồi" time
+    const timer = setInterval(fetchTables, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const fetchTables = async () => {
+    try {
+      const [tableData, resData] = await Promise.all([
+        tableApi.getTables(),
+        reservationApi.getActiveReservations(),
+      ]);
+
+      // Merge data: Find reservation for each table
+      const merged = tableData.map(table => {
+        const res = resData.find(r =>
+          r.danhSachBan && r.danhSachBan.some(b => b.idBan === table.idBan)
+        );
+        return { ...table, reservation: res };
+      });
+
+      setTables(merged);
+    } catch (err) {
+      console.error('Fetch map data failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateMinutesSat = (isoStr) => {
+    if (!isoStr) return 0;
+    const start = new Date(isoStr);
+    const now = new Date();
+    const diff = now - start;
+    const mins = Math.floor(diff / (1000 * 60));
+    return Math.max(0, mins);
+  };
 
   const handleTablePress = (table) => {
-    if (table.status === 'empty') setSelectedTable(table);
-    if (table.status === 'occupied') setOccupiedTable(table);
-    if (table.status === 'reserved') setReservedTable(table);
+    if (table.tinhTrangBan === 'TRONG') setSelectedTable(table);
+    if (table.tinhTrangBan === 'CO_KHACH') setOccupiedTable(table);
+    if (table.tinhTrangBan === 'DA_DAT') setReservedTable(table);
   };
 
   const handleReserve = () => {
@@ -58,10 +104,14 @@ const TableMap = ({ onNavigate }) => {
     setSelectedTable(null);
   };
 
-  const handleOpenMenu = () => {
-    const table = selectedTable;
+  const handleOpenMenu = (selectedTables = [], newReservationId) => {
+    // If multiple tables were selected in the sheet, pass them all
+    const contextTable = selectedTables.length > 0 ? { ...selectedTables[0] } : { ...selectedTable };
+    if (newReservationId) {
+       contextTable.idPhieuDatTemp = newReservationId;
+    }
     setSelectedTable(null);
-    onNavigate && onNavigate('OrderMenu', { table });
+    onNavigate && onNavigate('OrderMenu', { table: contextTable, allSelected: selectedTables });
   };
 
   const handleUpdateGuest = () => {
@@ -111,31 +161,35 @@ const TableMap = ({ onNavigate }) => {
 
       {/* ===== TABLE GRID ===== */}
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {mockTables.map(t => {
-          const s = getStatusStyle(t.status);
+        {loading ? (
+          <Text style={{ color: 'white', textAlign: 'center', marginTop: 20 }}>Đang tải danh sách bàn...</Text>
+        ) : tables.map(t => {
+          const s = getStatusStyle(t.tinhTrangBan);
           return (
             <Pressable
-              key={t.id}
+              key={t.idBan}
               style={[styles.tableCard, { backgroundColor: s.bg, borderColor: s.border }]}
               onPress={() => handleTablePress(t)}>
               <View style={styles.tableHeader}>
-                <Text style={styles.tableName}>{t.name}</Text>
+                <Text style={styles.tableName}>{t.tenBan}</Text>
                 <View style={[styles.tableBadge, { backgroundColor: s.color + '30' }]}>
                   <Text style={[styles.tableBadgeText, { color: s.color }]}>{s.label}</Text>
                 </View>
               </View>
-              {t.status === 'empty' && <Text style={styles.tableSubText}>Sức chứa: {t.capacity} người</Text>}
-              {t.status === 'occupied' && (
+              {t.tinhTrangBan === 'TRONG' && <Text style={styles.tableSubText}>Sức chứa: {t.sucChua} người</Text>}
+              {t.tinhTrangBan === 'CO_KHACH' && (
                 <View>
-                  <Text style={styles.tableSubText}>Đã ngồi: {t.time}</Text>
+                  <Text style={styles.tableSubText}>Đã ngồi: {calculateMinutesSat(t.reservation?.thoiGianDat)} phút</Text>
                   <Text style={[styles.tableSubText, { marginTop: 4 }]}>Tạm tính</Text>
-                  <Text style={[styles.tableMainValue, { color: s.color }]}>{t.price}</Text>
+                  <Text style={[styles.tableMainValue, { color: s.color }]}>0.000₫</Text>
                 </View>
               )}
-              {t.status === 'reserved' && (
+              {t.tinhTrangBan === 'DA_DAT' && (
                 <View style={{ alignItems: 'center', flex: 1, justifyContent: 'center' }}>
                   <Text style={styles.tableSubText}>Giờ hẹn đến</Text>
-                  <Text style={[styles.tableMainValue, { color: s.color, fontSize: 26, marginTop: 4 }]}>{t.time}</Text>
+                  <Text style={[styles.tableMainValue, { color: s.color, fontSize: 26, marginTop: 4 }]}>
+                    {t.reservation?.thoiGianDat ? t.reservation.thoiGianDat.slice(11, 16) : '--:--'}
+                  </Text>
                 </View>
               )}
             </Pressable>
@@ -156,21 +210,21 @@ const TableMap = ({ onNavigate }) => {
           <View style={[styles.summaryIconWrap, { backgroundColor: 'rgba(139,163,103,0.2)' }]}>
             <Text style={styles.summaryIcon}>👥</Text>
           </View>
-          <Text style={styles.summaryValue}>2</Text>
+          <Text style={styles.summaryValue}>{tables.filter(t => t.tinhTrangBan === 'CO_KHACH').length}</Text>
           <Text style={styles.summaryLabel}>Đang phục vụ</Text>
         </View>
         <View style={[styles.summaryCol, styles.summaryColBorder]}>
           <View style={[styles.summaryIconWrap, { backgroundColor: 'rgba(255,215,0,0.2)' }]}>
             <Text style={styles.summaryIcon}>🕒</Text>
           </View>
-          <Text style={styles.summaryValue}>2</Text>
+          <Text style={styles.summaryValue}>{tables.filter(t => t.tinhTrangBan === 'DA_DAT').length}</Text>
           <Text style={styles.summaryLabel}>Đã đặt</Text>
         </View>
         <View style={styles.summaryCol}>
           <View style={[styles.summaryIconWrap, { backgroundColor: 'rgba(255,255,255,0.08)' }]}>
             <Text style={styles.summaryIcon}>💰</Text>
           </View>
-          <Text style={styles.summaryValue}>705k</Text>
+          <Text style={styles.summaryValue}>0.000k</Text>
           <Text style={styles.summaryLabel}>Tạm tính</Text>
         </View>
       </View>
@@ -198,18 +252,25 @@ const TableMap = ({ onNavigate }) => {
       {/* ===== BOTTOM SHEET MODALS ===== */}
       <EmptyTableSheet
         table={selectedTable}
+        tables={tables}
         onClose={() => setSelectedTable(null)}
         onReserve={handleReserve}
         onOpenMenu={handleOpenMenu}
+        onRefresh={fetchTables}
       />
       <ReserveTableSheet
         table={reserveTable}
         onClose={() => setReserveTable(null)}
+        onRefresh={fetchTables}
       />
       <OccupiedTableSheet
         table={occupiedTable}
+        tables={tables}
         onClose={() => setOccupiedTable(null)}
         onUpdateGuest={handleUpdateGuest}
+        onRefresh={fetchTables}
+        onOpenMenu={handleOpenMenu}
+        onViewInvoice={(t) => setInvoiceTable(t)}
       />
       <UpdateGuestSheet
         table={updateGuestTable}
@@ -218,6 +279,7 @@ const TableMap = ({ onNavigate }) => {
       <ReservedTableSheet
         table={reservedTable}
         onClose={() => setReservedTable(null)}
+        onRefresh={fetchTables}
         onEdit={() => {
           setEditReserveTable(reservedTable);
           setReservedTable(null);
@@ -226,6 +288,10 @@ const TableMap = ({ onNavigate }) => {
       <EditReserveSheet
         table={editReserveTable}
         onClose={() => setEditReserveTable(null)}
+      />
+      <InvoiceDetailSheet
+        table={invoiceTable}
+        onClose={() => setInvoiceTable(null)}
       />
     </View>
   );

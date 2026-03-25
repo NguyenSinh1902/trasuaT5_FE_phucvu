@@ -7,33 +7,8 @@ const { width } = Dimensions.get('window');
 import LinearGradient from 'react-native-linear-gradient';
 import styles from './OrderSummary.styles';
 
-const MOCK_ORDER = [
-  {
-    id: 1,
-    name: 'Trà Sữa Matcha Kem Cheese',
-    options: 'Ít Đá, 50% Đường, Trân Châu đen',
-    price: 35000,
-    qty: 1,
-    uri: 'https://images.unsplash.com/photo-1544787210-2211d74fc286?w=200&q=80',
-  },
-  {
-    id: 2,
-    name: 'Trà Sữa Matcha Đậu Đỏ',
-    options: 'Ít Đá, 50% Đường, Trân Châu đen',
-    price: 45000,
-    qty: 1,
-    uri: 'https://images.unsplash.com/photo-1594631252845-29fc4586c552?w=200&q=80',
-  },
-  {
-    id: 3,
-    name: 'Trà Sữa Matcha Kem Cheese',
-    options: 'Ít Đá, 50% Đường, Trân Châu đen',
-    price: 58000,
-    qty: 1,
-    uri: 'https://images.unsplash.com/photo-1544787210-2211d74fc286?w=200&q=80',
-    deleting: true, // Simulation of swipe
-  },
-];
+import { Alert, ActivityIndicator } from 'react-native';
+import orderApi from '../../api/orderApi';
 
 const PROMOS = [
   {
@@ -60,29 +35,25 @@ const OrderItem = ({ item, onUpdateQty, onDelete }) => {
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onPanResponderMove: (_, gestureState) => {
-      // Only allow swiping to the left, max 80px
-      if (gestureState.dx < 0) {
-        swipeAnim.setValue(gestureState.dx);
-      }
+      if (gestureState.dx < 0) swipeAnim.setValue(gestureState.dx);
     },
     onPanResponderRelease: (_, gestureState) => {
       if (gestureState.dx < -40) {
-        // Snap to open
-        Animated.spring(swipeAnim, {
-          toValue: -80,
-          useNativeDriver: true,
-          bounciness: 0,
-        }).start();
+        Animated.spring(swipeAnim, { toValue: -80, useNativeDriver: true, bounciness: 0 }).start();
       } else {
-        // Snap back to closed
-        Animated.spring(swipeAnim, {
-          toValue: 0,
-          useNativeDriver: true,
-          bounciness: 8,
-        }).start();
+        Animated.spring(swipeAnim, { toValue: 0, useNativeDriver: true, bounciness: 8 }).start();
       }
     },
   });
+
+  const optionsText = [
+    item.variant.tenKichCo,
+    item.ice,
+    item.sugar,
+    item.toppings.length > 0 ? `Toppings: ${item.toppings.map(t => t.tenSanPham).join(', ')}` : null
+  ].filter(Boolean).join(', ');
+
+  const imageUri = item.duongDanAnh || 'https://images.unsplash.com/photo-1544787210-2211d74fc286?w=200&q=80';
 
   return (
     <View style={styles.itemContainer}>
@@ -93,25 +64,23 @@ const OrderItem = ({ item, onUpdateQty, onDelete }) => {
       }}>
         <Text style={styles.deleteIcon}>🗑️</Text>
       </Pressable>
-      <Animated.View
-        {...panResponder.panHandlers}
-        style={[styles.itemContent, { transform: [{ translateX: swipeAnim }] }]}>
-        <Image source={{ uri: item.uri }} style={styles.itemImg} />
+      <Animated.View {...panResponder.panHandlers} style={[styles.itemContent, { transform: [{ translateX: swipeAnim }] }]}>
+        <Image source={{ uri: imageUri }} style={styles.itemImg} />
         <View style={styles.itemInfo}>
-          <Text style={styles.itemName}>{item.name}</Text>
-          <Text style={styles.itemOptions}>{item.options}</Text>
+          <Text style={styles.itemName}>{item.tenSanPham}</Text>
+          <Text style={styles.itemOptions}>{optionsText}</Text>
         </View>
         <Pressable style={styles.editBtn}>
           <Text style={styles.editIcon}>📝</Text>
         </Pressable>
         <View style={{ alignItems: 'flex-end' }}>
-          <Text style={styles.itemPrice}>{item.price.toLocaleString('vi-VN')}</Text>
+          <Text style={styles.itemPrice}>{(item.price * item.quantity).toLocaleString('vi-VN')}</Text>
           <View style={styles.qtyRow}>
             <Pressable style={styles.qtyBtn} onPress={() => onUpdateQty(item.id, -1)}>
               <Text style={styles.qtyBtnText}>−</Text>
             </Pressable>
             <View style={styles.qtyValWrap}>
-              <Text style={styles.qtyValue}>{item.qty}</Text>
+              <Text style={styles.qtyValue}>{item.quantity}</Text>
             </View>
             <Pressable style={styles.qtyBtn} onPress={() => onUpdateQty(item.id, 1)}>
               <Text style={styles.qtyBtnText}>+</Text>
@@ -123,20 +92,81 @@ const OrderItem = ({ item, onUpdateQty, onDelete }) => {
   );
 };
 
-const OrderSummary = ({ onNavigate, table }) => {
-  const [items, setItems] = useState(MOCK_ORDER);
+const OrderSummary = ({ onNavigate, table, cart, onUpdateQty, onRemove, onClear }) => {
+  const [submitting, setSubmitting] = useState(false);
+  const items = cart || [];
+  const subtotal = items.reduce((sum, item) => sum + item.total, 0);
 
-  const handleUpdateQty = (id, delta) => {
-    setItems(prev => prev.map(item =>
-      item.id === id ? { ...item, qty: Math.max(1, item.qty + delta) } : item
-    ));
+  const handleOrder = async () => {
+    if (items.length === 0) {
+      Alert.alert('Giỏ hàng trống', 'Vui lòng chọn món trước khi đặt.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      // idPhieuDat can come from the existing table reservation or the temp injected one
+      const idPhieuDat = table?.reservation?.idPhieuDat || table?.idPhieuDatTemp;
+
+      if (!idPhieuDat) {
+        Alert.alert('Lỗi', 'Không tìm thấy ID Phiếu Đặt Bàn hợp lệ. Vui lòng mở lại bàn từ sơ đồ.');
+        setSubmitting(false);
+        return;
+      }
+
+      const payload = {
+        request: {
+          idNhanVien: 3,
+          idPhieuDat: idPhieuDat,
+          loaiDonHang: "TAI_BAN",
+          idKhachHang: null,
+          thueSuat: 0.08
+        },
+        chiTiets: items.map(item => ({
+          idBienThe: item.variant.idBienThe,
+          soLuong: item.quantity,
+          tuyChonJson: JSON.stringify({ duong: item.sugar, da: item.ice, luuY: item.note }),
+          danhSachIdTopping: item.toppings.map(t => t.idBienThe)
+        }))
+      };
+
+      try {
+        await orderApi.createOrder(payload);
+      } catch (err) {
+        const errMsg = err.response?.data?.message || err.message || '';
+        if (errMsg.toLowerCase().includes('cập nhật món') || errMsg.toLowerCase().includes('đã có hóa đơn') || err.response?.status === 400) {
+          // Fallback to update order by finding existing invoice ID
+          const allInvoicesRes = await orderApi.getAll();
+          const allInvoices = Array.isArray(allInvoicesRes) ? allInvoicesRes : (allInvoicesRes.data || []);
+          const activeInvoice = allInvoices.find(inv => 
+             inv.idPhieuDat === idPhieuDat && 
+             inv.trangThai !== 'DA_THANH_TOAN' && 
+             inv.trangThai !== 'DA_HUY'
+          );
+
+          if (activeInvoice) {
+             await orderApi.updateOrder(activeInvoice.idHoaDon, payload.chiTiets);
+          } else {
+             Alert.alert('Lỗi', 'Không tìm thấy hóa đơn đang chờ để thêm món.');
+             setSubmitting(false);
+             return;
+          }
+        } else {
+          throw err;
+        }
+      }
+      
+      onClear && onClear();
+      Alert.alert('Thành công', 'Đã lưu đơn hàng thành công!', [
+        { text: 'OK', onPress: () => onNavigate('TableMap') }
+      ]);
+    } catch (err) {
+      console.error('Order Submit Error:', err);
+      Alert.alert('Lỗi', 'Có lỗi xảy ra khi xử lý hóa đơn. Vui lòng thử lại.');
+    } finally {
+      setSubmitting(false);
+    }
   };
-
-  const handleDeleteItem = (id) => {
-    setItems(prev => prev.filter(item => item.id !== id));
-  };
-
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
 
   return (
     <View style={styles.container}>
@@ -151,7 +181,7 @@ const OrderSummary = ({ onNavigate, table }) => {
           <Pressable style={styles.backBtn} onPress={() => onNavigate('OrderMenu', { table })}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
-          <Text style={styles.headerTitle}>Đơn của {table?.name || 'Bàn A02'}</Text>
+          <Text style={styles.headerTitle}>Đơn của {table?.tenBan || table?.name || 'Bàn A02'}</Text>
         </View>
 
         {/* Section Title */}
@@ -166,7 +196,7 @@ const OrderSummary = ({ onNavigate, table }) => {
         {/* Order List */}
         <View style={styles.itemList}>
           {items.map(item => (
-            <OrderItem key={item.id} item={item} onUpdateQty={handleUpdateQty} onDelete={handleDeleteItem} />
+            <OrderItem key={item.id} item={item} onUpdateQty={onUpdateQty} onDelete={onRemove} />
           ))}
         </View>
 
@@ -209,9 +239,17 @@ const OrderSummary = ({ onNavigate, table }) => {
           <Text style={styles.finalTotalLabel}>Tổng Tiền</Text>
           <Text style={styles.finalTotalValue}>{subtotal.toLocaleString('vi-VN')} VND</Text>
         </View>
-        <Pressable style={styles.orderBtn} onPress={() => onNavigate('TableMap')}>
-          <Text style={styles.orderBtnText}>Đặt Món</Text>
-          <Text style={styles.orderBtnIcon}>›</Text>
+        <Pressable 
+          style={[styles.orderBtn, submitting && { opacity: 0.7 }]} 
+          onPress={submitting ? null : handleOrder}>
+          {submitting ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <Text style={styles.orderBtnText}>Đặt Món</Text>
+              <Text style={styles.orderBtnIcon}>›</Text>
+            </>
+          )}
         </Pressable>
       </View>
     </View>

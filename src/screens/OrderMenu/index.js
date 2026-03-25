@@ -1,61 +1,46 @@
 import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, Pressable, TextInput, StatusBar, Image, FlatList,
+  View, Text, ScrollView, Pressable, TextInput, StatusBar, Image, FlatList, ActivityIndicator
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import styles from './OrderMenu.styles';
 
-// ===================== MOCK DATA =====================
-const CATEGORIES = [
-  { id: 'all', emoji: '📋', label: 'Tất Cả' },
-  { id: 'matcha', emoji: '🧋', label: 'Trà Sữa\nMatchTea' },
-  { id: 'classic', emoji: '🍵', label: 'Truyền\nThống' },
-  { id: 'coffee', emoji: '☕', label: 'Cà Phê\n& Khác' },
-  { id: 'promo', emoji: '🎉', label: 'Khuyến\nMãi' },
-];
-
-const PRODUCTS = [
-  { id: 1, cat: 'matcha', name: 'Trà Sữa Matcha Trân Châu Đen', price: '45.000₫', uri: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400' },
-  { id: 2, cat: 'matcha', name: 'Trà Sữa Matcha Đậu Đỏ', price: '45.000₫', uri: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400' },
-  { id: 3, cat: 'matcha', name: 'Trà Sữa Matcha Kem Cheese', price: '52.000₫', uri: 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400' },
-  { id: 4, cat: 'classic', name: 'Trà Sữa Matcha Nguyên Chất', price: '40.000₫', badge: '-20%', uri: 'https://images.unsplash.com/photo-1564890369478-c89ca6d9cde9?w=400' },
-  { id: 5, cat: 'classic', name: 'Trà Đào Cam Sả (Peach Orange)', price: '48.000₫', badge: '-20%', uri: 'https://images.unsplash.com/photo-1499638673689-79a0b5115d87?w=400' },
-  { id: 6, cat: 'coffee', name: 'Cà Phê Sữa Đá', price: '35.000₫', uri: 'https://images.unsplash.com/photo-1520209759809-a9bcb6cb3241?w=400' },
-  { id: 7, cat: 'promo', name: 'Matcha Kem Cheese (-20%)', price: '42.000₫', badge: '-20%', uri: 'https://images.unsplash.com/photo-1582192730841-2a682d7375f9?w=400' },
-  { id: 8, cat: 'coffee', name: 'Cà Phê Đen Đá', price: '30.000₫', uri: 'https://images.unsplash.com/photo-1542897644-e04528f928e8?w=400' },
-];
-
-const SECTIONS = [
-  { id: 'hot', title: 'Sản Phẩm Hot 🔥', products: PRODUCTS.slice(0, 3) },
-  { id: 'promo', title: 'Khuyến Mãi Khủng 🏷️', products: PRODUCTS.slice(3, 6) },
-  { id: 'best', title: 'Sản Phẩm Bán Chạy 🏆', products: PRODUCTS },
-];
+import categoryApi from '../../api/categoryApi';
+import productApi from '../../api/productApi';
 
 // ===================== PRODUCT CARD =====================
-const ProductCard = ({ item, onNavigate, table }) => (
-  <View style={styles.productCard}>
-    <Pressable
-      onPress={() => onNavigate && onNavigate('ProductDetail', { product: item, table })}
-      style={styles.productImageWrap}>
-      <LinearGradient
-        colors={['#000', 'rgba(17,16,16,0.99)', '#CFCFCF']}
-        start={{ x: 0.15, y: 0 }} end={{ x: 1, y: 1 }}
-        style={styles.productImageGradient}>
-        <Image source={{ uri: item.uri }} style={styles.productImage} resizeMode="cover" />
-      </LinearGradient>
-      {item.badge && (
-        <LinearGradient colors={['#CACACA', '#113FF8']} start={{ x: 1, y: 0 }} end={{ x: 0, y: 0 }} style={styles.productBadge}>
-          <Text style={styles.productBadgeText}>{item.badge}</Text>
+const ProductCard = ({ item, onNavigate, table }) => {
+  // Get the base price from the first variant
+  const baseVariant = item.danhSachBienThe?.[0];
+  const price = baseVariant ? new Intl.NumberFormat('vi-VN').format(baseVariant.giaBan) + '₫' : '---₫';
+  const discount = baseVariant?.phanTramGiamGia > 0 ? `-${baseVariant.phanTramGiamGia}%` : null;
+  const imageUri = item.duongDanAnh || 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400';
+
+  return (
+    <View style={styles.productCard}>
+      <Pressable
+        onPress={() => onNavigate && onNavigate('ProductDetail', { product: item, table })}
+        style={styles.productImageWrap}>
+        <LinearGradient
+          colors={['#000', 'rgba(17,16,16,0.99)', '#CFCFCF']}
+          start={{ x: 0.15, y: 0 }} end={{ x: 1, y: 1 }}
+          style={styles.productImageGradient}>
+          <Image source={{ uri: imageUri }} style={styles.productImage} resizeMode="cover" />
         </LinearGradient>
-      )}
-      <Pressable style={styles.addBtn}>
-        <Text style={styles.addBtnText}>+</Text>
+        {discount && (
+          <LinearGradient colors={['#CACACA', '#113FF8']} start={{ x: 1, y: 0 }} end={{ x: 0, y: 0 }} style={styles.productBadge}>
+            <Text style={styles.productBadgeText}>{discount}</Text>
+          </LinearGradient>
+        )}
+        <Pressable style={styles.addBtn} onPress={() => onNavigate && onNavigate('ProductDetail', { product: item, table })}>
+          <Text style={styles.addBtnText}>+</Text>
+        </Pressable>
       </Pressable>
-    </Pressable>
-    <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-    <Text style={styles.productPrice}>$ {item.price}</Text>
-  </View>
-);
+      <Text style={styles.productName} numberOfLines={2}>{item.tenSanPham}</Text>
+      <Text style={styles.productPrice}>{price}</Text>
+    </View>
+  );
+};
 
 // ===================== PROMO CARD =====================
 const PromoCard = ({ gradient, badge, title, subtitle, btnText, btnColor }) => (
@@ -70,18 +55,74 @@ const PromoCard = ({ gradient, badge, title, subtitle, btnText, btnColor }) => (
 );
 
 // ===================== MAIN SCREEN =====================
-const OrderMenu = ({ onNavigate, table }) => {
+const OrderMenu = ({ onNavigate, table, cartCount }) => {
   const [query, setQuery] = useState('');
   const [cart, setCart] = useState([]);
   const [activeCat, setActiveCat] = useState('all');
+  const [categories, setCategories] = useState([{ idDanhMuc: 'all', tenDanhMuc: 'Tất Cả', emoji: '📋' }]);
+  const [sections, setSections] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredProducts = activeCat === 'all'
-    ? PRODUCTS
-    : PRODUCTS.filter(p => p.cat === activeCat);
+  React.useEffect(() => {
+    fetchInitialData();
+  }, []);
 
-  const displaySections = activeCat === 'all'
-    ? SECTIONS
-    : [{ id: activeCat, title: CATEGORIES.find(c => c.id === activeCat)?.label?.replace('\n', ' ') ?? '', products: filteredProducts }];
+  const fetchInitialData = async () => {
+    setLoading(true);
+    try {
+      const [catRes, homeRes] = await Promise.all([
+        categoryApi.getAll(),
+        productApi.getHome()
+      ]);
+
+      const catData = Array.isArray(catRes) ? catRes : (catRes.data || []);
+      const emojis = ['🧋', '🍵', '☕', '🎉', '🥤', '🍰'];
+      const formattedCats = [
+        { idDanhMuc: 'all', tenDanhMuc: 'Tất Cả', emoji: '📋' },
+        ...catData.map((c, i) => ({ ...c, emoji: emojis[i % emojis.length] }))
+      ];
+      setCategories(formattedCats);
+
+      const homeData = homeRes || {};
+      const initialSections = [
+        { id: 'hot', title: 'Sản Phẩm Hot 🔥', products: homeData.sanPhamHot || [] },
+        { id: 'promo', title: 'Khuyến Mãi Khủng 🏷️', products: homeData.sanPhamGiamGia || [] },
+        { id: 'new', title: 'Sản Phẩm Mới ✨', products: homeData.sanPhamMoi || [] },
+      ];
+      setSections(initialSections);
+    } catch (err) {
+      console.error('Failed to fetch menu data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCategoryPress = async (catId) => {
+    setActiveCat(catId);
+    if (catId === 'all') {
+      fetchInitialData();
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await productApi.getByCategory(catId);
+      const catName = categories.find(c => c.idDanhMuc === catId)?.tenDanhMuc || '';
+      const products = Array.isArray(res) ? res : (res.data || []);
+      setSections([{ id: catId, title: catName, products }]);
+    } catch (err) {
+      console.error('Failed to fetch category products:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredSections = query.trim() === ''
+    ? sections
+    : sections.map(s => ({
+        ...s,
+        products: s.products.filter(p => p.tenSanPham.toLowerCase().includes(query.toLowerCase()))
+      })).filter(s => s.products.length > 0);
 
   return (
     <View style={styles.container}>
@@ -94,10 +135,10 @@ const OrderMenu = ({ onNavigate, table }) => {
           <Text style={styles.backBtnText}>←</Text>
         </Pressable>
         <Text style={styles.headerTitle}>{table?.name?.toUpperCase() ?? 'BÀN'}</Text>
-        <Pressable style={styles.cartBtn}>
+        <Pressable style={styles.cartBtn} onPress={() => onNavigate && onNavigate('OrderSummary', { table })}>
           <Text style={styles.cartBtnText}>🛒</Text>
-          {cart.length > 0 && (
-            <View style={styles.cartBadge}><Text style={styles.cartBadgeText}>{cart.length}</Text></View>
+          {cartCount > 0 && (
+            <View style={styles.cartBadge}><Text style={styles.cartBadgeText}>{cartCount}</Text></View>
           )}
         </Pressable>
       </View>
@@ -121,23 +162,26 @@ const OrderMenu = ({ onNavigate, table }) => {
 
       {/* ===== CATEGORIES ===== */}
       <View style={styles.catRow}>
-        {CATEGORIES.map(c => {
-          const isActive = activeCat === c.id;
+        {categories.map(c => {
+          const isActive = activeCat === c.idDanhMuc;
           return (
-            <Pressable key={c.id} style={styles.catItem} onPress={() => setActiveCat(c.id)}>
+            <Pressable key={c.idDanhMuc} style={styles.catItem} onPress={() => handleCategoryPress(c.idDanhMuc)}>
               <View style={[
                 styles.catCircle,
                 isActive && styles.catCircleActive,
               ]}>
                 <Text style={[styles.catEmoji, isActive && styles.catEmojiActive]}>{c.emoji}</Text>
               </View>
-              <Text style={[styles.catLabel, isActive && styles.catLabelActive]}>{c.label}</Text>
+              <Text style={[styles.catLabel, isActive && styles.catLabelActive]} numberOfLines={1}>{c.tenDanhMuc}</Text>
             </Pressable>
           );
         })}
       </View>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+        {loading && (
+          <ActivityIndicator size="large" color="#8BA367" style={{ marginTop: 50 }} />
+        )}
         {/* ===== PROMO BANNER ===== */}
         <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={styles.bannerScroll}>
           <PromoCard
@@ -159,12 +203,12 @@ const OrderMenu = ({ onNavigate, table }) => {
         </ScrollView>
 
         {/* ===== PRODUCT SECTIONS ===== */}
-        {displaySections.map(section => (
+        {!loading && filteredSections.map(section => (
           <View key={section.id} style={styles.section}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
             <FlatList
               data={section.products}
-              keyExtractor={item => `${section.id}-${item.id}`}
+              keyExtractor={item => `${section.id}-${item.idSanPham}`}
               renderItem={({ item }) => <ProductCard item={item} onNavigate={onNavigate} table={table} />}
               numColumns={2}
               scrollEnabled={false}
