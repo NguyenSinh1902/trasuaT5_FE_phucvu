@@ -333,6 +333,26 @@ const TableMap = ({ onNavigate }) => {
           onOpenMenu={(tables, res, takeaway, invId) => handleOpenMenu([], null, true, invId)}
         />
       )}
+
+      {/* ===== BOTTOM NAV ===== */}
+      <View style={styles.navOverlay}>
+        <Pressable style={styles.navItem}>
+          <Text style={styles.navIconActive}>🏠</Text>
+          <Text style={styles.navLabelActive}>Home</Text>
+        </Pressable>
+        <Pressable style={styles.navItem}>
+          <Text style={styles.navIcon}>📋</Text>
+          <Text style={styles.navLabel}>History</Text>
+        </Pressable>
+        <Pressable style={styles.navItem}>
+          <Text style={styles.navIcon}>⚙️</Text>
+          <Text style={styles.navLabel}>Settings</Text>
+        </Pressable>
+        <Pressable style={styles.navItem}>
+          <Text style={styles.navIcon}>👤</Text>
+          <Text style={styles.navLabel}>Profile</Text>
+        </Pressable>
+      </View>
     </View>
   );
 };
