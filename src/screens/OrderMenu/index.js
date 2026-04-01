@@ -9,17 +9,26 @@ import categoryApi from '../../api/categoryApi';
 import productApi from '../../api/productApi';
 
 // ===================== PRODUCT CARD =====================
-const ProductCard = ({ item, onNavigate, table }) => {
+const ProductCard = ({ item, onNavigate, table, isTakeaway, invoiceId }) => {
   // Get the base price from the first variant
   const baseVariant = item.danhSachBienThe?.[0];
   const price = baseVariant ? new Intl.NumberFormat('vi-VN').format(baseVariant.giaBan) + '₫' : '---₫';
   const discount = baseVariant?.phanTramGiamGia > 0 ? `-${baseVariant.phanTramGiamGia}%` : null;
   const imageUri = item.duongDanAnh || 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400';
 
+  const navigateToDetail = () => {
+    onNavigate && onNavigate('ProductDetail', { 
+      product: item, 
+      table, 
+      isTakeaway, 
+      invoiceId 
+    });
+  };
+
   return (
     <View style={styles.productCard}>
       <Pressable
-        onPress={() => onNavigate && onNavigate('ProductDetail', { product: item, table })}
+        onPress={navigateToDetail}
         style={styles.productImageWrap}>
         <LinearGradient
           colors={['#000', 'rgba(17,16,16,0.99)', '#CFCFCF']}
@@ -32,7 +41,7 @@ const ProductCard = ({ item, onNavigate, table }) => {
             <Text style={styles.productBadgeText}>{discount}</Text>
           </LinearGradient>
         )}
-        <Pressable style={styles.addBtn} onPress={() => onNavigate && onNavigate('ProductDetail', { product: item, table })}>
+        <Pressable style={styles.addBtn} onPress={navigateToDetail}>
           <Text style={styles.addBtnText}>+</Text>
         </Pressable>
       </Pressable>
@@ -55,7 +64,7 @@ const PromoCard = ({ gradient, badge, title, subtitle, btnText, btnColor }) => (
 );
 
 // ===================== MAIN SCREEN =====================
-const OrderMenu = ({ onNavigate, table, cartCount }) => {
+const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, cartCount }) => {
   const [query, setQuery] = useState('');
   const [cart, setCart] = useState([]);
   const [activeCat, setActiveCat] = useState('all');
@@ -134,8 +143,8 @@ const OrderMenu = ({ onNavigate, table, cartCount }) => {
         <Pressable style={styles.backBtn} onPress={() => onNavigate && onNavigate('TableMap')}>
           <Text style={styles.backBtnText}>←</Text>
         </Pressable>
-        <Text style={styles.headerTitle}>{table?.name?.toUpperCase() ?? 'BÀN'}</Text>
-        <Pressable style={styles.cartBtn} onPress={() => onNavigate && onNavigate('OrderSummary', { table })}>
+        <Text style={styles.headerTitle}>{isTakeaway ? 'MANG VỀ' : (table?.name?.toUpperCase() ?? 'BÀN')}</Text>
+        <Pressable style={styles.cartBtn} onPress={() => onNavigate && onNavigate('OrderSummary', { table, isTakeaway, invoiceId })}>
           <Text style={styles.cartBtnText}>🛒</Text>
           {cartCount > 0 && (
             <View style={styles.cartBadge}><Text style={styles.cartBadgeText}>{cartCount}</Text></View>
@@ -209,7 +218,7 @@ const OrderMenu = ({ onNavigate, table, cartCount }) => {
             <FlatList
               data={section.products}
               keyExtractor={item => `${section.id}-${item.idSanPham}`}
-              renderItem={({ item }) => <ProductCard item={item} onNavigate={onNavigate} table={table} />}
+              renderItem={({ item }) => <ProductCard item={item} onNavigate={onNavigate} table={table} isTakeaway={isTakeaway} invoiceId={invoiceId} />}
               numColumns={2}
               scrollEnabled={false}
               columnWrapperStyle={styles.productRow}

@@ -3,6 +3,7 @@ import { View, Text, Modal, Pressable, ScrollView, ActivityIndicator, Alert } fr
 import LinearGradient from 'react-native-linear-gradient';
 import styles from '../TableMap.styles';
 import reservationApi from '../../../api/reservationApi';
+import orderApi from '../../../api/orderApi';
 
 const OccupiedTableSheet = ({ table, tables, onClose, onUpdateGuest, onRefresh, onOpenMenu, onViewInvoice }) => {
   const [loading, setLoading] = useState(false);
@@ -68,6 +69,39 @@ const OccupiedTableSheet = ({ table, tables, onClose, onUpdateGuest, onRefresh, 
     );
   };
 
+  const handleRequestPayment = async () => {
+    const invoiceId = table.invoice?.idHoaDon;
+    if (!invoiceId) {
+      Alert.alert('Thanh toán', 'Bàn này hiện chưa có hóa đơn hoặc hóa đơn không còn hiệu lực.');
+      return;
+    }
+
+    Alert.alert(
+      'Yêu cầu thanh toán',
+      'Bạn muốn gửi yêu cầu thanh toán cho hóa đơn này?',
+      [
+        { text: 'Bỏ qua', style: 'cancel' },
+        { 
+          text: 'Xác nhận', 
+          onPress: async () => {
+            setLoading(true);
+            try {
+              await orderApi.requestPayment(invoiceId);
+              if (onRefresh) await onRefresh();
+              onClose();
+              Alert.alert('Thành công', 'Đã chuyển trạng thái Đang Chờ Thanh Toán.');
+            } catch (err) {
+              console.error('Request payment error:', err);
+              Alert.alert('Lỗi', 'Không thể gửi yêu cầu thanh toán. Vui lòng thử lại sau.');
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   return (
     <Modal visible={!!table} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.sheetBackdrop} onPress={onClose} />
@@ -78,7 +112,10 @@ const OccupiedTableSheet = ({ table, tables, onClose, onUpdateGuest, onRefresh, 
         <View style={styles.sheetHeaderRow}>
           <View>
             <Text style={styles.sheetTitle}>{table.tenBan || 'Bàn không tên'}</Text>
-            <Text style={styles.sheetSubtitle}>Đang phục vụ</Text>
+            <Text style={[styles.sheetSubtitle, table.invoice?.trangThai === 'CHO_THANH_TOAN' && { color: '#FFD700' }, table.invoice?.trangThai === 'DA_THANH_TOAN' && { color: '#9810FA' }]}>
+              {table.invoice?.trangThai === 'CHO_THANH_TOAN' ? 'Chờ Thanh Toán 🔔' : 
+               table.invoice?.trangThai === 'DA_THANH_TOAN' ? 'Đã Thanh Toán' : 'Đang Phục Vụ'}
+            </Text>
           </View>
           <Pressable style={styles.sheetCloseBtn} onPress={onClose}>
             <Text style={styles.sheetCloseBtnText}>✕</Text>
@@ -88,33 +125,42 @@ const OccupiedTableSheet = ({ table, tables, onClose, onUpdateGuest, onRefresh, 
         {/* Stats row */}
         <View style={styles.occStatRow}>
           <View style={styles.occStatBox}>
-            <Text style={styles.occStatLabel}>Giờ đến</Text>
+            <Text style={styles.occStatLabel}>Giờ vào</Text>
             <Text style={styles.occStatValue}>
-              {table.reservation?.thoiGianDat ? table.reservation.thoiGianDat.slice(11, 16) : '--:--'}
+              {table.invoice?.thoiGianTao ? new Date(table.invoice.thoiGianTao).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) : 
+               table.reservation?.thoiGianDat ? table.reservation.thoiGianDat.slice(11, 16) : '--:--'}
             </Text>
           </View>
           <View style={[styles.occStatBox, { marginLeft: 12 }]}>
-            <Text style={styles.occStatLabel}>Đã ngồi</Text>
+            <Text style={styles.occStatLabel}>Thời gian ngồi</Text>
             <Text style={styles.occStatValue}>
-              {table.reservation?.thoiGianDat
-                ? (() => {
-                  const diffMs = new Date() - new Date(table.reservation.thoiGianDat);
-                  const diffMins = Math.floor(diffMs / 60000);
-                  return `${Math.max(0, diffMins)} phút`;
-                })()
-                : '0 phút'}
+              {(() => {
+                const startTime = table.invoice?.thoiGianTao || table.reservation?.thoiGianDat;
+                if (!startTime) return '0 phút';
+                const diffMs = new Date() - new Date(startTime);
+                const diffMins = Math.floor(diffMs / 60000);
+                return `${Math.max(0, diffMins)} phút`;
+              })()}
             </Text>
           </View>
         </View>
 
         {/* Total price card */}
         <LinearGradient
-          colors={['rgba(139,163,103,0.2)', 'rgba(107,142,78,0.1)']}
+          colors={
+            table.invoice?.trangThai === 'CHO_THANH_TOAN' ? ['rgba(255,215,0,0.25)', 'rgba(255,165,0,0.15)'] :
+            table.invoice?.trangThai === 'DA_THANH_TOAN' ? ['rgba(152,16,250,0.2)', 'rgba(108,108,108,0.1)'] :
+            ['rgba(255,68,68,0.15)', 'rgba(255,68,68,0.08)']
+          }
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          style={styles.occPriceCard}>
+          style={[styles.occPriceCard, { borderColor: table.invoice?.trangThai === 'CHO_THANH_TOAN' ? '#FFD700' : 
+                                                    table.invoice?.trangThai === 'DA_THANH_TOAN' ? '#9810FA' : 'rgba(255,68,68,0.3)' }]}>
           <Text style={styles.occPriceLabel}>Tổng tạm tính</Text>
-          <Text style={styles.occPriceValue}>{table.price || '0.000₫'}</Text>
-          <Text style={styles.occGuestCount}>{table.reservation?.soLuongNguoi || 0} khách</Text>
+          <Text style={[styles.occPriceValue, { color: table.invoice?.trangThai === 'CHO_THANH_TOAN' ? '#FFD700' : 
+                                                      table.invoice?.trangThai === 'DA_THANH_TOAN' ? '#9810FA' : '#FF4444' }]}>
+            {table.invoice?.tongThanhToan?.toLocaleString('vi-VN') || '0'}₫
+          </Text>
+          <Text style={styles.occGuestCount}>{table.reservation?.soLuongNguoi || table.invoice?.soLuongKhach || 0} khách</Text>
         </LinearGradient>
 
         {/* Action Buttons */}
@@ -177,7 +223,9 @@ const OccupiedTableSheet = ({ table, tables, onClose, onUpdateGuest, onRefresh, 
         </View>
 
         <LinearGradient colors={['#FFD700', '#FFA500']} style={styles.confirmBtn}>
-          <Pressable style={styles.confirmBtnInner} onPress={() => Alert.alert('Tính năng đang phát triển', 'Chức năng thanh toán sẽ được cập nhật sớm.')}>
+          <Pressable 
+            style={styles.confirmBtnInner} 
+            onPress={handleRequestPayment}>
             <Text style={[styles.confirmBtnText, { color: '#1A1A1A', fontWeight: '700' }]}>💳 Yêu cầu thanh toán</Text>
           </Pressable>
         </LinearGradient>

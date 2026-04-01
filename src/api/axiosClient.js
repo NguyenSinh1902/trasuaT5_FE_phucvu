@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 const axiosClient = axios.create({
-  baseURL: 'http://localhost:8080/api', // Use 10.0.2.2 for Android Emulator to reach localhost
+  // baseURL: 'http://localhost:8080/api',
+  baseURL: 'http://10.0.2.2:8080/api', // Use 10.0.2.2 for Android Emulator to reach localhost
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

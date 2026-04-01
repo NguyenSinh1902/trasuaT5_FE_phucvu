@@ -8,7 +8,7 @@ const sh = (size) => (height / BASE_H) * size;
 const mod = (size, factor = 0.5) => size + (sw(size) - size) * factor;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121614' },
+  container: { flex: 1, backgroundColor: '#000000' },
   backgroundGradient: { ...StyleSheet.absoluteFillObject },
 
 
@@ -170,16 +170,21 @@ const styles = StyleSheet.create({
   // ===================== BOTTOM SHEET =====================
   sheetBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)', // Darker for focus
   },
   sheetContainer: {
-    backgroundColor: 'rgba(26,26,26,0.98)',
-    borderTopLeftRadius: sw(32),
-    borderTopRightRadius: sw(32),
-    borderTopWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    paddingHorizontal: sw(24),
+    backgroundColor: '#1E1E1E',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: mod(24),
     paddingBottom: sh(40),
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)', // Subtle highlight
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 20,
   },
   sheetHandle: {
     alignSelf: 'center',
@@ -344,6 +349,83 @@ const styles = StyleSheet.create({
   },
   resInfoKey: { color: 'rgba(255,255,255,0.55)', fontSize: mod(14) },
   resInfoValue: { color: '#FFF', fontSize: mod(14), fontWeight: '600' },
+
+  // ===================== TAKE-AWAY LIST =====================
+  takeawayListContainer: {
+    paddingHorizontal: sw(20),
+    paddingTop: sh(16),
+  },
+  takeawayCard: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: sw(16),
+    padding: sw(16),
+    marginBottom: sh(12),
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  takeawayCardActive: {
+    backgroundColor: 'rgba(255,165,0,0.1)',
+    borderColor: 'rgba(255,165,0,0.3)',
+  },
+  takeawayHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: sh(8),
+  },
+  takeawayIdText: {
+    color: '#FFF',
+    fontSize: mod(18),
+    fontWeight: '700',
+  },
+  takeawayTimeText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: mod(12),
+  },
+  takeawayInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  takeawayCustomerText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: mod(14),
+  },
+  takeawayTotalText: {
+    color: '#8BA367',
+    fontSize: mod(16),
+    fontWeight: '700',
+  },
+
+  // FAB (Floating Action Button) cho Tạo Đơn Mới
+  fabCreateOrder: {
+    position: 'absolute',
+    bottom: sh(230), // Increased to clear the summary overlay (which ends at ~213)
+    right: sw(25),
+    width: sw(64),
+    height: sw(64),
+    borderRadius: sw(32),
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 10,
+    zIndex: 999,
+    shadowColor: '#8BA367',
+    shadowOffset: { width: 0, height: 0 }, // Uniform glow instead of directional shadow
+    shadowOpacity: 0.6,
+    shadowRadius: 12,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.4)', // Subtle white border for sharpness
+    backgroundColor: '#8BA367',
+  },
+  fabIconText: {
+    fontSize: sw(40),
+    color: '#FFFFFF',
+    fontWeight: '300', // Using light/thin weight for a cleaner look sometimes, or keep bold?
+    // User liked it sharp, let's use a cleaner bold
+    includeFontPadding: false, // Android specific centering fix
+    textAlignVertical: 'center', // Android specific centering fix
+    marginTop: sh(-4), // Micro-adjustment for visual centering
+  },
 });
 
 export default styles;

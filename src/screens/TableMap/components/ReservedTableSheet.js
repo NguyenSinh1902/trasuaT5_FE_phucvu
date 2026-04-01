@@ -4,7 +4,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import styles from '../TableMap.styles';
 import reservationApi from '../../../api/reservationApi';
 
-const ReservedTableSheet = ({ table, onClose, onEdit, onRefresh }) => {
+const ReservedTableSheet = ({ table, onClose, onEdit, onRefresh, onOpenMenu }) => {
   const [loading, setLoading] = useState(false);
 
   if (!table) return null;
@@ -15,8 +15,13 @@ const ReservedTableSheet = ({ table, onClose, onEdit, onRefresh }) => {
 
     setLoading(true);
     try {
-      await reservationApi.checkIn(resId);
+      const response = await reservationApi.checkIn(resId);
       if (onRefresh) await onRefresh();
+      
+      // Auto-open menu for the newly checked-in table
+      if (onOpenMenu && response?.danhSachBan) {
+        onOpenMenu(response.danhSachBan, response.idPhieuDat);
+      }
       onClose();
     } catch (err) {
       console.error('Check-in failed:', err);

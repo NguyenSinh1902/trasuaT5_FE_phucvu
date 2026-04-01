@@ -16,6 +16,9 @@ const productApi = {
   getMenu: () => {
     return axiosClient.get('/san-pham/menu');
   },
+  getById: (id) => {
+    return axiosClient.get(`/san-pham/${id}`);
+  },
 };
 
 export default productApi;

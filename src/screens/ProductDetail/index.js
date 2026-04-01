@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, ScrollView, Pressable, Image, TextInput, StatusBar,
 } from 'react-native';
@@ -10,17 +10,17 @@ import productApi from '../../api/productApi';
 const ICE_LEVELS = ['Không đá', 'Ít đá', 'Mặc định', 'Nhiều đá'];
 const SUGAR_LEVELS = ['0%', '50%', '70%', '100%'];
 
-const ProductDetail = ({ onNavigate, product, table, onAddToCart }) => {
+const ProductDetail = ({ onNavigate, product, table, isTakeaway, invoiceId, onAddToCart, existingItem }) => {
   const [toppings, setToppings] = useState([]);
-  const [selectedVariantId, setSelectedVariantId] = useState(product?.danhSachBienThe?.[0]?.idBienThe);
-  const [selectedIce, setSelectedIce] = useState('Mặc định');
-  const [selectedSugar, setSelectedSugar] = useState('50%');
-  const [selectedToppings, setSelectedToppings] = useState([]);
-  const [quantity, setQuantity] = useState(1);
-  const [note, setNote] = useState('');
+  const [selectedVariantId, setSelectedVariantId] = useState(existingItem?.variant?.idBienThe || product?.danhSachBienThe?.[0]?.idBienThe);
+  const [selectedIce, setSelectedIce] = useState(existingItem?.ice || 'Mặc định');
+  const [selectedSugar, setSelectedSugar] = useState(existingItem?.sugar || '50%');
+  const [selectedToppings, setSelectedToppings] = useState(existingItem?.toppings?.map(t => t.idSanPham) || []);
+  const [quantity, setQuantity] = useState(existingItem?.quantity || 1);
+  const [note, setNote] = useState(existingItem?.note || '');
   const [showAI, setShowAI] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchToppings();
   }, []);
 
@@ -48,7 +48,6 @@ const ProductDetail = ({ onNavigate, product, table, onAddToCart }) => {
   const totalPrice = useMemo(() => {
     const base = selectedVariant?.giaBan || 0;
     const toppingsExtra = selectedToppings.reduce((sum, id) => {
-      // Find topping and its variant price (assuming toppings have 1 variant)
       const t = toppings.find(item => item.idSanPham === id);
       const toppingPrice = t?.danhSachBienThe?.[0]?.giaBan || 0;
       return sum + toppingPrice;
@@ -56,7 +55,8 @@ const ProductDetail = ({ onNavigate, product, table, onAddToCart }) => {
     return (base + toppingsExtra) * quantity;
   }, [selectedVariant, selectedToppings, quantity, toppings]);
 
-  const handleBack = () => onNavigate('OrderMenu', { table });
+  const handleBack = () => onNavigate('OrderMenu', { table, isTakeaway, invoiceId });
+  
   const handleConfirm = () => {
     const cartItem = {
       idSanPham: product.idSanPham,
@@ -75,12 +75,14 @@ const ProductDetail = ({ onNavigate, product, table, onAddToCart }) => {
         };
       }),
       quantity,
-      price: totalPrice / quantity, // unit price with options
+      price: totalPrice / quantity,
       total: totalPrice,
-      note
+      note,
+      product: product, // Save full product object for offline editing
+      replaceId: existingItem?.id // Use this to replace instead of add in App.jsx
     };
     onAddToCart && onAddToCart(cartItem);
-    onNavigate('OrderMenu', { table });
+    onNavigate('OrderMenu', { table, isTakeaway, invoiceId });
   };
 
   return (
@@ -118,7 +120,7 @@ const ProductDetail = ({ onNavigate, product, table, onAddToCart }) => {
 
         {/* Size Selection */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Chọn Size</Text>
+          <Text style={styles.sectionTitle}>Chọn Size {existingItem ? '(Chỉnh sửa)' : ''}</Text>
           <View style={styles.requiredBadge}>
             <Text style={styles.requiredIcon}>⚠️</Text>
             <Text style={styles.requiredText}>Chọn 1</Text>
@@ -271,7 +273,7 @@ const ProductDetail = ({ onNavigate, product, table, onAddToCart }) => {
           </Pressable>
         </View>
         <Pressable style={styles.confirmBtn} onPress={handleConfirm}>
-          <Text style={styles.confirmText}>Xác nhận món</Text>
+          <Text style={styles.confirmText}>{existingItem ? 'Lưu thay đổi' : 'Xác nhận món'}</Text>
           <Text style={styles.confirmIcon}>✔️</Text>
         </Pressable>
       </View>

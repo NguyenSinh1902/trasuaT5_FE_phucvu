@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, Pressable, Image, StatusBar, FlatList, Animated, PanResponder, Dimensions,
+  View, Text, ScrollView, Pressable, Image, StatusBar, Animated, PanResponder, Dimensions,
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -9,6 +9,7 @@ import styles from './OrderSummary.styles';
 
 import { Alert, ActivityIndicator } from 'react-native';
 import orderApi from '../../api/orderApi';
+import productApi from '../../api/productApi';
 
 const PROMOS = [
   {
@@ -29,7 +30,7 @@ const PROMOS = [
   },
 ];
 
-const OrderItem = ({ item, onUpdateQty, onDelete }) => {
+const OrderItem = ({ item, onUpdateQty, onDelete, onEdit }) => {
   const [swipeAnim] = useState(new Animated.Value(0));
 
   const panResponder = PanResponder.create({
@@ -70,11 +71,11 @@ const OrderItem = ({ item, onUpdateQty, onDelete }) => {
           <Text style={styles.itemName}>{item.tenSanPham}</Text>
           <Text style={styles.itemOptions}>{optionsText}</Text>
         </View>
-        <Pressable style={styles.editBtn}>
+        <Pressable style={styles.editBtn} onPress={() => onEdit && onEdit(item)}>
           <Text style={styles.editIcon}>📝</Text>
         </Pressable>
         <View style={{ alignItems: 'flex-end' }}>
-          <Text style={styles.itemPrice}>{(item.price * item.quantity).toLocaleString('vi-VN')}</Text>
+          <Text style={styles.itemPrice}>{(item.price * item.quantity).toLocaleString('vi-VN')}đ</Text>
           <View style={styles.qtyRow}>
             <Pressable style={styles.qtyBtn} onPress={() => onUpdateQty(item.id, -1)}>
               <Text style={styles.qtyBtnText}>−</Text>
@@ -92,10 +93,26 @@ const OrderItem = ({ item, onUpdateQty, onDelete }) => {
   );
 };
 
-const OrderSummary = ({ onNavigate, table, cart, onUpdateQty, onRemove, onClear }) => {
+const OrderSummary = ({ onNavigate, table, isTakeaway, invoiceId, cart, onUpdateQty, onRemove, onClear }) => {
   const [submitting, setSubmitting] = useState(false);
   const items = cart || [];
-  const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+  const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+  const handleEdit = (item) => {
+    // We already have the full product stored in the item
+    if (!item.product) {
+      Alert.alert('Lỗi', 'Không tìm thấy thông tin sản phẩm này.');
+      return;
+    }
+
+    onNavigate('ProductDetail', { 
+      product: item.product, 
+      table, 
+      isTakeaway, 
+      invoiceId, 
+      existingItem: item 
+    });
+  };
 
   const handleOrder = async () => {
     if (items.length === 0) {
@@ -105,10 +122,10 @@ const OrderSummary = ({ onNavigate, table, cart, onUpdateQty, onRemove, onClear 
 
     setSubmitting(true);
     try {
-      // idPhieuDat can come from the existing table reservation or the temp injected one
       const idPhieuDat = table?.reservation?.idPhieuDat || table?.idPhieuDatTemp;
+      const loaiDonHang = isTakeaway ? "MANG_VE" : "TAI_BAN";
 
-      if (!idPhieuDat) {
+      if (!isTakeaway && !idPhieuDat) {
         Alert.alert('Lỗi', 'Không tìm thấy ID Phiếu Đặt Bàn hợp lệ. Vui lòng mở lại bàn từ sơ đồ.');
         setSubmitting(false);
         return;
@@ -116,9 +133,9 @@ const OrderSummary = ({ onNavigate, table, cart, onUpdateQty, onRemove, onClear 
 
       const payload = {
         request: {
-          idNhanVien: 3,
-          idPhieuDat: idPhieuDat,
-          loaiDonHang: "TAI_BAN",
+          idNhanVien: 3, 
+          idPhieuDat: idPhieuDat || null,
+          loaiDonHang: loaiDonHang,
           idKhachHang: null,
           thueSuat: 0.08
         },
@@ -130,30 +147,24 @@ const OrderSummary = ({ onNavigate, table, cart, onUpdateQty, onRemove, onClear 
         }))
       };
 
-      try {
-        await orderApi.createOrder(payload);
-      } catch (err) {
-        const errMsg = err.response?.data?.message || err.message || '';
-        if (errMsg.toLowerCase().includes('cập nhật món') || errMsg.toLowerCase().includes('đã có hóa đơn') || err.response?.status === 400) {
-          // Fallback to update order by finding existing invoice ID
-          const allInvoicesRes = await orderApi.getAll();
-          const allInvoices = Array.isArray(allInvoicesRes) ? allInvoicesRes : (allInvoicesRes.data || []);
-          const activeInvoice = allInvoices.find(inv => 
-             inv.idPhieuDat === idPhieuDat && 
-             inv.trangThai !== 'DA_THANH_TOAN' && 
-             inv.trangThai !== 'DA_HUY'
-          );
+      if (invoiceId) {
+        await orderApi.addItemsToInvoice(invoiceId, payload.chiTiets);
+      } else if (idPhieuDat) {
+        const allInvoicesRes = await orderApi.getAll();
+        const allInvoices = Array.isArray(allInvoicesRes) ? allInvoicesRes : (allInvoicesRes.data || []);
+        const activeInvoice = allInvoices.find(inv => 
+           inv.idPhieuDat === idPhieuDat && 
+           inv.trangThai !== 'DA_THANH_TOAN' && 
+           inv.trangThai !== 'DA_HUY'
+        );
 
-          if (activeInvoice) {
-             await orderApi.updateOrder(activeInvoice.idHoaDon, payload.chiTiets);
-          } else {
-             Alert.alert('Lỗi', 'Không tìm thấy hóa đơn đang chờ để thêm món.');
-             setSubmitting(false);
-             return;
-          }
+        if (activeInvoice) {
+          await orderApi.addItemsToInvoice(activeInvoice.idHoaDon, payload.chiTiets);
         } else {
-          throw err;
+          await orderApi.createOrder(payload);
         }
+      } else {
+        await orderApi.createOrder(payload);
       }
       
       onClear && onClear();
@@ -161,7 +172,7 @@ const OrderSummary = ({ onNavigate, table, cart, onUpdateQty, onRemove, onClear 
         { text: 'OK', onPress: () => onNavigate('TableMap') }
       ]);
     } catch (err) {
-      console.error('Order Submit Error:', err);
+      console.error('Order Submit Error Details:', err.response?.data || err.message);
       Alert.alert('Lỗi', 'Có lỗi xảy ra khi xử lý hóa đơn. Vui lòng thử lại.');
     } finally {
       setSubmitting(false);
@@ -178,16 +189,16 @@ const OrderSummary = ({ onNavigate, table, cart, onUpdateQty, onRemove, onClear 
           <View style={styles.gridPattern}>
             {[...Array(20)].map((_, i) => <View key={i} style={styles.gridLine} />)}
           </View>
-          <Pressable style={styles.backBtn} onPress={() => onNavigate('OrderMenu', { table })}>
+          <Pressable style={styles.backBtn} onPress={() => onNavigate('OrderMenu', { table, isTakeaway, invoiceId })}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
-          <Text style={styles.headerTitle}>Đơn của {table?.tenBan || table?.name || 'Bàn A02'}</Text>
+          <Text style={styles.headerTitle}>Đơn của {table?.tenBan || 'Giao đi'}</Text>
         </View>
 
         {/* Section Title */}
         <View style={styles.sectionRow}>
           <Text style={styles.sectionTitle}>Tóm Tắt Đơn Hàng</Text>
-          <Pressable style={styles.addItemBtn} onPress={() => onNavigate('OrderMenu', { table })}>
+          <Pressable style={styles.addItemBtn} onPress={() => onNavigate('OrderMenu', { table, isTakeaway, invoiceId })}>
             <Text style={styles.addItemIcon}>✚</Text>
             <Text style={styles.addItemText}>Thêm Món</Text>
           </Pressable>
@@ -196,7 +207,7 @@ const OrderSummary = ({ onNavigate, table, cart, onUpdateQty, onRemove, onClear 
         {/* Order List */}
         <View style={styles.itemList}>
           {items.map(item => (
-            <OrderItem key={item.id} item={item} onUpdateQty={onUpdateQty} onDelete={onRemove} />
+            <OrderItem key={item.id} item={item} onUpdateQty={onUpdateQty} onDelete={onRemove} onEdit={handleEdit} />
           ))}
         </View>
 
