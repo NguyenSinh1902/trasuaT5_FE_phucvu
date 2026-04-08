@@ -29,10 +29,10 @@ const TableMap = ({ onNavigate }) => {
   // Sheets state
   const [selectedTable, setSelectedTable] = useState(null);
   const [selectedTakeaway, setSelectedTakeaway] = useState(null);
-  const [isReserveSheetVisible, setIsReserveSheetVisible] = useState(false);
-  const [isUpdateGuestVisible, setIsUpdateGuestVisible] = useState(false);
-  const [isInvoiceSheetVisible, setIsInvoiceSheetVisible] = useState(false);
-  const [isEditReserveVisible, setIsEditReserveVisible] = useState(false);
+  const [reserveTable, setReserveTable] = useState(null);
+  const [updateGuestTable, setUpdateGuestTable] = useState(null);
+  const [invoiceTable, setInvoiceTable] = useState(null);
+  const [editReserveTable, setEditReserveTable] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -277,7 +277,7 @@ const TableMap = ({ onNavigate }) => {
         <EmptyTableSheet 
           table={selectedTable} 
           onClose={() => setSelectedTable(null)} 
-          onReserve={() => { setIsReserveSheetVisible(true); setSelectedTable(null); }}
+          onReserve={() => { setReserveTable(selectedTable); setSelectedTable(null); }}
           onOpenMenu={(tables) => handleOpenMenu(tables, null)}
         />
       )}
@@ -287,10 +287,10 @@ const TableMap = ({ onNavigate }) => {
           table={selectedTable} 
           tables={tables}
           onClose={() => setSelectedTable(null)} 
-          onUpdateGuest={() => setIsUpdateGuestVisible(true)}
+          onUpdateGuest={() => { setUpdateGuestTable(selectedTable); setSelectedTable(null); }}
           onRefresh={fetchData}
           onOpenMenu={(tables) => handleOpenMenu(tables, null)}
-          onViewInvoice={(table) => { setIsInvoiceSheetVisible(true); setSelectedTable(table); }}
+          onViewInvoice={(table) => { setInvoiceTable(table); setSelectedTable(null); }}
         />
       )}
 
@@ -300,29 +300,29 @@ const TableMap = ({ onNavigate }) => {
           onClose={() => setSelectedTable(null)} 
           onRefresh={fetchData}
           onOpenMenu={(tables, res) => handleOpenMenu(tables, res)}
-          onEdit={() => { setIsEditReserveVisible(true); setSelectedTable(null); }}
+          onEdit={() => { setEditReserveTable(selectedTable); setSelectedTable(null); }}
         />
       )}
 
-      {isReserveSheetVisible && selectedTable && (
-        <ReserveTableSheet table={selectedTable} onClose={() => setIsReserveSheetVisible(false)} onRefresh={fetchData} />
+      {reserveTable && (
+        <ReserveTableSheet table={reserveTable} onClose={() => setReserveTable(null)} onRefresh={fetchData} />
       )}
 
-      {isUpdateGuestVisible && selectedTable && (
-        <UpdateGuestSheet table={selectedTable} onClose={() => setIsUpdateGuestVisible(false)} onRefresh={fetchData} />
+      {updateGuestTable && (
+        <UpdateGuestSheet table={updateGuestTable} onClose={() => setUpdateGuestTable(null)} onRefresh={fetchData} />
       )}
 
-      {isInvoiceSheetVisible && selectedTable && (
+      {invoiceTable && (
         <InvoiceDetailSheet 
-          table={selectedTable} 
-          onClose={() => setIsInvoiceSheetVisible(false)} 
+          table={invoiceTable} 
+          onClose={() => setInvoiceTable(null)} 
           onRefresh={fetchData}
           onOpenMenu={(tables) => handleOpenMenu(tables, null)}
         />
       )}
 
-      {isEditReserveVisible && selectedTable && (
-        <EditReserveSheet table={selectedTable} onClose={() => setIsEditReserveVisible(false)} onRefresh={fetchData} />
+      {editReserveTable && (
+        <EditReserveSheet table={editReserveTable} onClose={() => setEditReserveTable(null)} onRefresh={fetchData} />
       )}
 
       {selectedTakeaway && (

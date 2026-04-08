@@ -30,19 +30,38 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
   }, [table]);
 
   const fetchInvoice = async () => {
-    const idPhieuDat = table?.reservation?.idPhieuDat;
-    if (!idPhieuDat) return;
+    const idHoaDon = table?.invoice?.idHoaDon;
+    const idPhieuDat = table?.reservation?.idPhieuDat || table?.idPhieuDatTemp;
+
+    if (!idHoaDon && !idPhieuDat) {
+      setInvoice(null);
+      return;
+    }
+
     setLoading(true);
     try {
-      const allRes = await orderApi.getAll();
-      const allInvoices = Array.isArray(allRes) ? allRes : (allRes.data || []);
-      const active = allInvoices.find(inv =>
-        inv.idPhieuDat === idPhieuDat &&
-        inv.trangThai !== 'DA_THANH_TOAN' &&
-        inv.trangThai !== 'DA_HUY'
-      );
-      if (!active) { setInvoice(null); return; }
-      const detailRes = await orderApi.getById(active.idHoaDon);
+      let targetIdHoaDon = idHoaDon;
+
+      // Nếu chưa có idHoaDon nhưng có idPhieuDat, tìm hóá đơn đang active cho phiếu đặt bàn này
+      if (!targetIdHoaDon) {
+        const allRes = await orderApi.getAll();
+        const allInvoices = Array.isArray(allRes) ? allRes : (allRes.data || []);
+        const active = allInvoices.find(inv =>
+          inv.idPhieuDat === idPhieuDat &&
+          inv.trangThai !== 'DA_THANH_TOAN' &&
+          inv.trangThai !== 'DA_HUY'
+        );
+        if (active) {
+            targetIdHoaDon = active.idHoaDon;
+        }
+      }
+
+      if (!targetIdHoaDon) {
+        setInvoice(null);
+        return;
+      }
+
+      const detailRes = await orderApi.getById(targetIdHoaDon);
       setInvoice(detailRes.data || detailRes);
     } catch (err) {
       console.error('Fetch invoice error:', err);
@@ -198,7 +217,16 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
               )}
             </View>
           </ScrollView>
-        ) : null}
+        ) : (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, marginBottom: 20 }}>Bàn này chưa gọi món.</Text>
+            <LinearGradient colors={['#8BA367', '#6B8E4E']} style={[styles.confirmBtn, { width: '80%' }]}>
+              <Pressable style={styles.confirmBtnInner} onPress={() => { onOpenMenu([table]); onClose(); }}>
+                <Text style={styles.confirmBtnText}>➕ Thêm món</Text>
+              </Pressable>
+            </LinearGradient>
+          </View>
+        )}
 
         {/* Edit Modal */}
         <Modal visible={isEditModalVisible} transparent animationType="fade">
