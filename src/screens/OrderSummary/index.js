@@ -93,7 +93,7 @@ const OrderItem = ({ item, onUpdateQty, onDelete, onEdit }) => {
   );
 };
 
-const OrderSummary = ({ onNavigate, table, isTakeaway, invoiceId, cart, onUpdateQty, onRemove, onClear }) => {
+const OrderSummary = ({ onNavigate, table, isTakeaway, invoiceId, reservation, cart, onUpdateQty, onRemove, onClear }) => {
   const [submitting, setSubmitting] = useState(false);
   const items = cart || [];
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -110,6 +110,7 @@ const OrderSummary = ({ onNavigate, table, isTakeaway, invoiceId, cart, onUpdate
       table, 
       isTakeaway, 
       invoiceId, 
+      reservation,
       existingItem: item 
     });
   };
@@ -122,11 +123,18 @@ const OrderSummary = ({ onNavigate, table, isTakeaway, invoiceId, cart, onUpdate
 
     setSubmitting(true);
     try {
-      const idPhieuDat = table?.reservation?.idPhieuDat || table?.idPhieuDatTemp;
+      // Tìm ID Phiếu Đặt ở mọi nơi có thể
+      const idPhieuDat = reservation || 
+                         table?.reservation?.idPhieuDat || 
+                         table?.idPhieuDat ||
+                         table?.idPhieuDatTemp;
+                         
       const loaiDonHang = isTakeaway ? "MANG_VE" : "TAI_BAN";
 
       if (!isTakeaway && !idPhieuDat) {
-        Alert.alert('Lỗi', 'Không tìm thấy ID Phiếu Đặt Bàn hợp lệ. Vui lòng mở lại bàn từ sơ đồ.');
+        // Debug thử xem tại sao không có ID
+        console.log('DEBUG - Order Params:', { isTakeaway, reservation, tableId: table?.idBan, hasResObj: !!table?.reservation });
+        Alert.alert('Lỗi', `Không tìm thấy ID Phiếu Đặt Bàn cho ${table?.tenBan || 'bàn này'}. Vui lòng thử mở lại bàn.`);
         setSubmitting(false);
         return;
       }
@@ -189,7 +197,7 @@ const OrderSummary = ({ onNavigate, table, isTakeaway, invoiceId, cart, onUpdate
           <View style={styles.gridPattern}>
             {[...Array(20)].map((_, i) => <View key={i} style={styles.gridLine} />)}
           </View>
-          <Pressable style={styles.backBtn} onPress={() => onNavigate('OrderMenu', { table, isTakeaway, invoiceId })}>
+          <Pressable style={styles.backBtn} onPress={() => onNavigate('OrderMenu', { table, isTakeaway, invoiceId, reservation })}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <Text style={styles.headerTitle}>Đơn của {table?.tenBan || 'Giao đi'}</Text>
@@ -198,7 +206,7 @@ const OrderSummary = ({ onNavigate, table, isTakeaway, invoiceId, cart, onUpdate
         {/* Section Title */}
         <View style={styles.sectionRow}>
           <Text style={styles.sectionTitle}>Tóm Tắt Đơn Hàng</Text>
-          <Pressable style={styles.addItemBtn} onPress={() => onNavigate('OrderMenu', { table, isTakeaway, invoiceId })}>
+          <Pressable style={styles.addItemBtn} onPress={() => onNavigate('OrderMenu', { table, isTakeaway, invoiceId, reservation })}>
             <Text style={styles.addItemIcon}>✚</Text>
             <Text style={styles.addItemText}>Thêm Món</Text>
           </Pressable>

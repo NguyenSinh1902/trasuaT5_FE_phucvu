@@ -9,7 +9,7 @@ import categoryApi from '../../api/categoryApi';
 import productApi from '../../api/productApi';
 
 // ===================== PRODUCT CARD =====================
-const ProductCard = ({ item, onNavigate, table, isTakeaway, invoiceId }) => {
+const ProductCard = ({ item, onNavigate, table, isTakeaway, invoiceId, reservation }) => {
   // Get the base price from the first variant
   const baseVariant = item.danhSachBienThe?.[0];
   const price = baseVariant ? new Intl.NumberFormat('vi-VN').format(baseVariant.giaBan) + '₫' : '---₫';
@@ -21,7 +21,8 @@ const ProductCard = ({ item, onNavigate, table, isTakeaway, invoiceId }) => {
       product: item, 
       table, 
       isTakeaway, 
-      invoiceId 
+      invoiceId,
+      reservation
     });
   };
 
@@ -64,7 +65,7 @@ const PromoCard = ({ gradient, badge, title, subtitle, btnText, btnColor }) => (
 );
 
 // ===================== MAIN SCREEN =====================
-const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, cartCount }) => {
+const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, reservation, cartCount }) => {
   const [query, setQuery] = useState('');
   const [cart, setCart] = useState([]);
   const [activeCat, setActiveCat] = useState('all');
@@ -144,7 +145,7 @@ const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, cartCount }) => {
           <Text style={styles.backBtnText}>←</Text>
         </Pressable>
         <Text style={styles.headerTitle}>{isTakeaway ? 'MANG VỀ' : (table?.name?.toUpperCase() ?? 'BÀN')}</Text>
-        <Pressable style={styles.cartBtn} onPress={() => onNavigate && onNavigate('OrderSummary', { table, isTakeaway, invoiceId })}>
+        <Pressable style={styles.cartBtn} onPress={() => onNavigate && onNavigate('OrderSummary', { table, isTakeaway, invoiceId, reservation })}>
           <Text style={styles.cartBtnText}>🛒</Text>
           {cartCount > 0 && (
             <View style={styles.cartBadge}><Text style={styles.cartBadgeText}>{cartCount}</Text></View>
@@ -218,7 +219,7 @@ const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, cartCount }) => {
             <FlatList
               data={section.products}
               keyExtractor={item => `${section.id}-${item.idSanPham}`}
-              renderItem={({ item }) => <ProductCard item={item} onNavigate={onNavigate} table={table} isTakeaway={isTakeaway} invoiceId={invoiceId} />}
+              renderItem={({ item }) => <ProductCard item={item} onNavigate={onNavigate} table={table} isTakeaway={isTakeaway} invoiceId={invoiceId} reservation={reservation} />}
               numColumns={2}
               scrollEnabled={false}
               columnWrapperStyle={styles.productRow}

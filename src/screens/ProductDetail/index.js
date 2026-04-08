@@ -10,7 +10,7 @@ import productApi from '../../api/productApi';
 const ICE_LEVELS = ['Không đá', 'Ít đá', 'Mặc định', 'Nhiều đá'];
 const SUGAR_LEVELS = ['0%', '50%', '70%', '100%'];
 
-const ProductDetail = ({ onNavigate, product, table, isTakeaway, invoiceId, onAddToCart, existingItem }) => {
+const ProductDetail = ({ onNavigate, product, table, isTakeaway, invoiceId, reservation, onAddToCart, existingItem }) => {
   const [toppings, setToppings] = useState([]);
   const [selectedVariantId, setSelectedVariantId] = useState(existingItem?.variant?.idBienThe || product?.danhSachBienThe?.[0]?.idBienThe);
   const [selectedIce, setSelectedIce] = useState(existingItem?.ice || 'Mặc định');
@@ -55,7 +55,7 @@ const ProductDetail = ({ onNavigate, product, table, isTakeaway, invoiceId, onAd
     return (base + toppingsExtra) * quantity;
   }, [selectedVariant, selectedToppings, quantity, toppings]);
 
-  const handleBack = () => onNavigate('OrderMenu', { table, isTakeaway, invoiceId });
+  const handleBack = () => onNavigate('OrderMenu', { table, isTakeaway, invoiceId, reservation });
   
   const handleConfirm = () => {
     const cartItem = {
@@ -82,7 +82,7 @@ const ProductDetail = ({ onNavigate, product, table, isTakeaway, invoiceId, onAd
       replaceId: existingItem?.id // Use this to replace instead of add in App.jsx
     };
     onAddToCart && onAddToCart(cartItem);
-    onNavigate('OrderMenu', { table, isTakeaway, invoiceId });
+    onNavigate('OrderMenu', { table, isTakeaway, invoiceId, reservation });
   };
 
   return (

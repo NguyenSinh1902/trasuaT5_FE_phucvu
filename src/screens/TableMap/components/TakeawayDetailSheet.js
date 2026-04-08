@@ -156,7 +156,7 @@ const TakeawayDetailSheet = ({ invoice, onClose, onRefresh, onOpenMenu }) => {
         <View style={{ gap: 10, marginTop: 20 }}>
           <View style={{ flexDirection: 'row', gap: 12 }}>
             <Pressable style={[styles.occBtnGhost, { flex: 1, marginBottom: 0 }]} onPress={handleCancel}><Text style={{ color: '#FFA2A2' }}>⊗ Hủy đơn</Text></Pressable>
-            <LinearGradient colors={['#8BA367', '#6B8E4E']} style={[styles.confirmBtn, { flex: 1 }]}><Pressable style={styles.confirmBtnInner} onPress={() => { onOpenMenu && onOpenMenu([], null, true); onClose(); }}><Text style={styles.confirmBtnText}>➕ Thêm món</Text></Pressable></LinearGradient>
+            <LinearGradient colors={['#8BA367', '#6B8E4E']} style={[styles.confirmBtn, { flex: 1 }]}><Pressable style={styles.confirmBtnInner} onPress={() => { onOpenMenu && onOpenMenu([], null, true, invoice.idHoaDon); onClose(); }}><Text style={styles.confirmBtnText}>➕ Thêm món</Text></Pressable></LinearGradient>
           </View>
           {invoice.trangThai !== 'CHO_THANH_TOAN' && invoice.trangThai !== 'DA_THANH_TOAN' && (
             <LinearGradient colors={['#FFD700', '#FFA500']} style={styles.confirmBtn}>

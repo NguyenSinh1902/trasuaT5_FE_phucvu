@@ -34,18 +34,7 @@ const TableMap = ({ onNavigate }) => {
   const [invoiceTable, setInvoiceTable] = useState(null);
   const [editReserveTable, setEditReserveTable] = useState(null);
 
-  useEffect(() => {
-    fetchData();
-    const timer = setInterval(fetchData, 30000); // Auto refresh every 30s
-    return () => clearInterval(timer);
-  }, []);
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchData().finally(() => setRefreshing(false));
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!refreshing) setLoading(true);
     try {
       const [tableRes, allInvoices, resRes] = await Promise.all([
@@ -61,12 +50,19 @@ const TableMap = ({ onNavigate }) => {
       // Map data to tables (Dine-in)
       const mappedTables = tableData.map(t => {
         const res = reservations.find(r => r.danhSachBan?.some(b => b.idBan === t.idBan));
-        const activeInvoice = invoices.find(inv => 
+        
+        // Lọc tất cả hóa đơn đang hoạt động của bàn này
+        const tableInvoices = invoices.filter(inv => 
           inv.loaiDonHang === 'TAI_BAN' && 
           inv.danhSachTenBan?.includes(t.tenBan) &&
           inv.trangThai !== 'DA_THANH_TOAN' &&
-          inv.trangThai !== 'DA_HUY'
+          inv.trangThai !== 'DA_HUY' &&
+          inv.trangThai !== 'HOAN_TAT'
         );
+        
+        // Lấy hóa đơn mới nhất (cuối danh sách)
+        const activeInvoice = tableInvoices.length > 0 ? tableInvoices[tableInvoices.length - 1] : null;
+        
         return { ...t, reservation: res, invoice: activeInvoice };
       });
       setTables(mappedTables);
@@ -84,7 +80,19 @@ const TableMap = ({ onNavigate }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [refreshing]);
+
+  useEffect(() => {
+    fetchData();
+    const timer = setInterval(fetchData, 30000); // Auto refresh every 30s
+    return () => clearInterval(timer);
+  }, [fetchData]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchData().finally(() => setRefreshing(false));
+  }, [fetchData]);
+
 
   const getStatusStyle = (tinhTrang, invoiceTrangThai) => {
     if (invoiceTrangThai === 'CHO_THANH_TOAN') {
@@ -128,7 +136,17 @@ const TableMap = ({ onNavigate }) => {
   };
 
   const handleOpenMenu = (selectedTables, reservation, isTakeaway = false, invoiceId = null) => {
-    const table = Array.isArray(selectedTables) && selectedTables.length > 0 ? selectedTables[0] : (selectedTable || null);
+    let table = Array.isArray(selectedTables) && selectedTables.length > 0 ? selectedTables[0] : (selectedTable || null);
+    
+    // Nếu là đơn tại bàn và có ID phiếu đặt, hãy đảm bảo nó được đính vào object table
+    if (!isTakeaway && reservation && table) {
+      if (!table.reservation) {
+        table = { ...table, reservation: { idPhieuDat: reservation } };
+      } else if (!table.reservation.idPhieuDat) {
+        table.reservation.idPhieuDat = reservation;
+      }
+    }
+
     onNavigate('OrderMenu', {
       table,
       reservation,
@@ -276,9 +294,11 @@ const TableMap = ({ onNavigate }) => {
       {selectedTable && selectedTable.tinhTrangBan === 'TRONG' && (
         <EmptyTableSheet 
           table={selectedTable} 
+          tables={tables}
           onClose={() => setSelectedTable(null)} 
           onReserve={() => { setReserveTable(selectedTable); setSelectedTable(null); }}
-          onOpenMenu={(tables) => handleOpenMenu(tables, null)}
+          onOpenMenu={(tables, resId) => handleOpenMenu(tables, resId)}
+          onRefresh={fetchData}
         />
       )}
 
@@ -289,7 +309,7 @@ const TableMap = ({ onNavigate }) => {
           onClose={() => setSelectedTable(null)} 
           onUpdateGuest={() => { setUpdateGuestTable(selectedTable); setSelectedTable(null); }}
           onRefresh={fetchData}
-          onOpenMenu={(tables) => handleOpenMenu(tables, null)}
+          onOpenMenu={(tables, resId, isTakeaway, invId) => handleOpenMenu(tables, resId, isTakeaway, invId)}
           onViewInvoice={(table) => { setInvoiceTable(table); setSelectedTable(null); }}
         />
       )}
@@ -317,7 +337,7 @@ const TableMap = ({ onNavigate }) => {
           table={invoiceTable} 
           onClose={() => setInvoiceTable(null)} 
           onRefresh={fetchData}
-          onOpenMenu={(tables) => handleOpenMenu(tables, null)}
+          onOpenMenu={(tables, resId, isTakeaway, invId) => handleOpenMenu(tables, resId, isTakeaway, invId)}
         />
       )}
 

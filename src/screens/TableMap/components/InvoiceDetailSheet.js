@@ -206,7 +206,7 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
               {invoice.trangThai !== 'DA_THANH_TOAN' && (
                 <View style={{ marginTop: 20, gap: 10 }}>
                   <LinearGradient colors={['#8BA367', '#6B8E4E']} style={styles.confirmBtn}>
-                    <Pressable style={styles.confirmBtnInner} onPress={() => { onOpenMenu([table]); onClose(); }}><Text style={styles.confirmBtnText}>➕ Thêm món</Text></Pressable>
+                    <Pressable style={styles.confirmBtnInner} onPress={() => { onOpenMenu([table], table?.reservation?.idPhieuDat || table?.idPhieuDatTemp, false, invoice?.idHoaDon); onClose(); }}><Text style={styles.confirmBtnText}>➕ Thêm món</Text></Pressable>
                   </LinearGradient>
                   {invoice.trangThai !== 'CHO_THANH_TOAN' && (
                     <LinearGradient colors={['#FFD700', '#FFA500']} style={styles.confirmBtn}>
@@ -221,7 +221,7 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
             <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, marginBottom: 20 }}>Bàn này chưa gọi món.</Text>
             <LinearGradient colors={['#8BA367', '#6B8E4E']} style={[styles.confirmBtn, { width: '80%' }]}>
-              <Pressable style={styles.confirmBtnInner} onPress={() => { onOpenMenu([table]); onClose(); }}>
+              <Pressable style={styles.confirmBtnInner} onPress={() => { onOpenMenu([table], table?.reservation?.idPhieuDat || table?.idPhieuDatTemp, false, invoice?.idHoaDon); onClose(); }}>
                 <Text style={styles.confirmBtnText}>➕ Thêm món</Text>
               </Pressable>
             </LinearGradient>

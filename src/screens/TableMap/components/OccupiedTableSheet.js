@@ -216,7 +216,7 @@ const OccupiedTableSheet = ({ table, tables, onClose, onUpdateGuest, onRefresh, 
             </Pressable>
           </LinearGradient>
           <LinearGradient colors={['#8BA367', '#6B8E4E']} style={[styles.confirmBtn, { flex: 1 }]}>
-            <Pressable style={styles.confirmBtnInner} onPress={() => { onOpenMenu && onOpenMenu([table]); onClose(); }}>
+            <Pressable style={styles.confirmBtnInner} onPress={() => { onOpenMenu && onOpenMenu([table], reservationId, false, table.invoice?.idHoaDon); onClose(); }}>
               <Text style={styles.confirmBtnText}>📋 Gọi món</Text>
             </Pressable>
           </LinearGradient>
