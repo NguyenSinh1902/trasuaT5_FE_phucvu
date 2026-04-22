@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, Pressable, StatusBar, ActivityIndicator, Dimensions, RefreshControl, useWindowDimensions, TextInput } from 'react-native';
+import { View, Text, ScrollView, Pressable, StatusBar, ActivityIndicator, Dimensions, RefreshControl, useWindowDimensions, TextInput, StyleSheet } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import styles from './TableMap.styles';
 import tableApi from '../../api/tableApi';
 import orderApi from '../../api/orderApi';
 import reservationApi from '../../api/reservationApi';
+import staffApi from '../../api/staffApi';
+import safeAsyncStorage from '../../utils/storage';
+import Sidebar from '../../components/Sidebar';
 
 // Sheet components
 import EmptyTableSheet from './components/EmptyTableSheet';
+import UserProfileModal from './components/UserProfileModal';
 import OccupiedTableSheet from './components/OccupiedTableSheet';
 import ReserveTableSheet from './components/ReserveTableSheet';
 import ReservedTableSheet from './components/ReservedTableSheet';
@@ -18,6 +22,8 @@ import TakeawayDetailSheet from './components/TakeawayDetailSheet';
 
 const { width: windowWidth } = Dimensions.get('window');
 
+import { useFocusEffect } from '@react-navigation/native';
+
 const TableMap = ({ onNavigate }) => {
   const { width } = useWindowDimensions();
   const isTablet = width >= 700;
@@ -25,7 +31,8 @@ const TableMap = ({ onNavigate }) => {
   const [activeTab, setActiveTab] = useState('dine');
   const [tables, setTables] = useState([]);
   const [takeawayOrders, setTakeawayOrders] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
   // Tablet States
@@ -41,6 +48,7 @@ const TableMap = ({ onNavigate }) => {
   const [updateGuestTable, setUpdateGuestTable] = useState(null);
   const [invoiceTable, setInvoiceTable] = useState(null);
   const [editReserveTable, setEditReserveTable] = useState(null);
+  const [showProfile, setShowProfile] = useState(false);
 
   // Đồng hồ thời gian thực - cập nhật mỗi giây
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -100,8 +108,29 @@ const TableMap = ({ onNavigate }) => {
     }
   }, [refreshing]);
 
+  const loadUserData = async () => {
+    try {
+      const storedUser = await safeAsyncStorage.getItem('user');
+      if (storedUser) {
+        const userObj = JSON.parse(storedUser);
+        // Lấy thông tin mới nhất từ API
+        const latestProfile = await staffApi.getProfile(userObj.idNhanVien);
+        setCurrentUser(latestProfile.data || latestProfile);
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
+  };
+
+  // Tự động làm mới khi màn hình được focus
+  useFocusEffect(
+    useCallback(() => {
+      loadUserData();
+      fetchData();
+    }, [fetchData])
+  );
+
   useEffect(() => {
-    fetchData();
     const timer = setInterval(fetchData, 30000);
     return () => clearInterval(timer);
   }, [fetchData]);
@@ -174,52 +203,14 @@ const TableMap = ({ onNavigate }) => {
   // =========================================================
 
   const renderTabletSidebar = () => (
-    <View style={[styles.tabletSidebar, isSidebarCollapsed && styles.tabletSidebarCollapsed]}>
-      {/* Click Logo => Toggle Sidebar */}
-      <Pressable
-        style={[styles.sidebarHeader, isSidebarCollapsed && styles.sidebarHeaderCollapsed]}
-        onPress={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-      >
-        <View style={styles.brandGroup}>
-          <View style={styles.brandLogo}><Text style={styles.brandLogoText}>🍃</Text></View>
-          {!isSidebarCollapsed && (
-            <View style={styles.brandTitleGroup}>
-              <Text style={styles.brandTitle}>MatchTea</Text>
-              <Text style={styles.brandSubtitle}>App phục vụ</Text>
-            </View>
-          )}
-        </View>
-      </Pressable>
-
-      <View style={[styles.tabletNavContainer, isSidebarCollapsed && styles.tabletNavContainerCollapsed]}>
-        <Pressable style={[styles.tabletNavItem, styles.tabletNavItemActive, isSidebarCollapsed && styles.tabletNavItemCollapsed]}>
-          <Text style={[styles.tabletNavIcon, styles.tabletNavIconActive]}>🏠</Text>
-          {!isSidebarCollapsed && <Text style={styles.tabletNavLabelActive}>Trang chủ</Text>}
-        </Pressable>
-        <Pressable style={[styles.tabletNavItem, isSidebarCollapsed && styles.tabletNavItemCollapsed]}>
-          <Text style={styles.tabletNavIcon}>📋</Text>
-          {!isSidebarCollapsed && <Text style={styles.tabletNavLabel}>Lịch sử đơn hàng</Text>}
-        </Pressable>
-        <Pressable style={[styles.tabletNavItem, isSidebarCollapsed && styles.tabletNavItemCollapsed]}>
-          <Text style={styles.tabletNavIcon}>⚙️</Text>
-          {!isSidebarCollapsed && <Text style={styles.tabletNavLabel}>Cài đặt</Text>}
-        </Pressable>
-      </View>
-
-      <View style={{ marginTop: 'auto' }}>
-        <View style={[styles.sidebarFooter, isSidebarCollapsed && styles.sidebarFooterCollapsed]}>
-          <View style={styles.userProfileGroup}>
-            <View style={styles.avatarWrap}><Text style={styles.avatarInitials}>ML</Text></View>
-            {!isSidebarCollapsed && (
-              <View style={styles.userInfoText}>
-                <Text style={styles.userName}>Mai Linh</Text>
-                <Text style={styles.userRole}>Phục vụ - Ca Chiều</Text>
-              </View>
-            )}
-          </View>
-        </View>
-      </View>
-    </View>
+    <Sidebar 
+      activeRoute="TableMap"
+      onNavigate={onNavigate}
+      currentUser={currentUser}
+      isCollapsed={isSidebarCollapsed}
+      onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+      onShowProfile={() => setShowProfile(true)}
+    />
   );
 
   const renderTabletTopHeader = () => (
@@ -282,7 +273,15 @@ const TableMap = ({ onNavigate }) => {
     const s = getStatusStyle(t.tinhTrangBan);
     const hasInvoice = t.tinhTrangBan === 'CO_KHACH' && t.invoice;
     const orderStatus = hasInvoice ? getOrderStatusStyle(t.invoice.trangThai) : null;
-    const showOnlyStatusTag = t.tinhTrangBan === 'DA_DAT'; // Bỏ hiển thị tag 'Bàn Trống' vì đã có line màu trên đầu phân biệt trạng thái rồi.
+    const showOnlyStatusTag = t.tinhTrangBan === 'DA_DAT';
+
+    // Xác định màu gradient dựa trên trạng thái
+    let gradientColors = ['#FFFFFF', '#F1F5F9']; // Mặc định: Trống (Trắng -> Xám nhẹ)
+    if (t.tinhTrangBan === 'CO_KHACH') {
+      gradientColors = ['#FFFFFF', '#FFF1F2']; // Đang dùng (Trắng -> Hồng/Đỏ nhẹ)
+    } else if (t.tinhTrangBan === 'DA_DAT') {
+      gradientColors = ['#FFFFFF', '#F0F9FF']; // Đã đặt (Trắng -> Xanh dương nhẹ)
+    }
 
     // Elapsed time
     const elapsedTime = hasInvoice
@@ -297,79 +296,138 @@ const TableMap = ({ onNavigate }) => {
         style={[styles.tabletTableCard, { borderTopColor: s.baseColor }]}
         onPress={() => handleTablePress(t)}
       >
-        {/* Row 1: Tên bàn + Tag trạng thái đơn */}
-        <View style={styles.newCardTopRow}>
-          <Text style={styles.newCardTitle} numberOfLines={1}>{t.tenBan}</Text>
-          {orderStatus ? (
-            <View style={[styles.newCardStatusTag, { backgroundColor: orderStatus.bg }]}>
-              <View style={[styles.newCardStatusDot, { backgroundColor: orderStatus.color }]} />
-              <Text style={[styles.newCardStatusText, { color: orderStatus.color }]}>{orderStatus.label}</Text>
-            </View>
-          ) : showOnlyStatusTag ? (
-            <View style={[styles.newCardStatusTag, { backgroundColor: s.bg }]}>
-              <View style={[styles.newCardStatusDot, { backgroundColor: s.baseColor }]} />
-              <Text style={[styles.newCardStatusText, { color: s.baseColor }]}>{s.label}</Text>
-            </View>
-          ) : null}
-        </View>
-
-        {/* Row 2: Đồng hồ căn giữa */}
-        <View style={styles.newCardMiddleRow}>
-          <View style={styles.newCardInfoTag}>
-            <Text style={styles.newCardInfoIcon}>🕒</Text>
-            <Text style={styles.newCardInfoText}>{elapsedTime}</Text>
+        <LinearGradient
+          colors={gradientColors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        
+        {/* Nội dung Card */}
+        <View style={{ flex: 1, justifyContent: 'space-between' }}>
+          {/* Row 1: Tên bàn + Tag trạng thái đơn */}
+          <View style={styles.newCardTopRow}>
+            <Text style={styles.newCardTitle} numberOfLines={1}>{t.tenBan}</Text>
+            {orderStatus ? (
+              <View style={[styles.newCardStatusTag, { backgroundColor: orderStatus.bg }]}>
+                <View style={[styles.newCardStatusDot, { backgroundColor: orderStatus.color }]} />
+                <Text style={[styles.newCardStatusText, { color: orderStatus.color }]}>{orderStatus.label}</Text>
+              </View>
+            ) : showOnlyStatusTag ? (
+              <View style={[styles.newCardStatusTag, { backgroundColor: s.bg }]}>
+                <View style={[styles.newCardStatusDot, { backgroundColor: s.baseColor }]} />
+                <Text style={[styles.newCardStatusText, { color: s.baseColor }]}>{s.label}</Text>
+              </View>
+            ) : null}
           </View>
-        </View>
 
-        {/* Row 3: Tạm tính + Giá */}
-        <View style={styles.newCardBottomRow}>
-          <Text style={styles.newCardBottomLabel}>Tạm tính</Text>
-          <Text
-            style={[styles.newCardPriceText, { color: hasInvoice && t.invoice?.tongThanhToan > 0 ? '#EF4444' : '#94A3B8' }]}
-            adjustsFontSizeToFit
-            numberOfLines={1}
-          >
-            {t.invoice?.tongThanhToan ? Math.round(t.invoice.tongThanhToan).toLocaleString('vi-VN') + ' VND' : '0 VND'}
-          </Text>
+          {/* Row 2: Đồng hồ căn giữa */}
+          <View style={styles.newCardMiddleRow}>
+            <View style={styles.newCardInfoTag}>
+              <Text style={styles.newCardInfoIcon}>🕒</Text>
+              <Text style={styles.newCardInfoText}>{elapsedTime}</Text>
+            </View>
+          </View>
+
+          {/* Row 3: Tạm tính + Giá */}
+          <View style={styles.newCardBottomRow}>
+            <Text style={styles.newCardBottomLabel}>Tạm tính</Text>
+            <Text
+              style={[styles.newCardPriceText, { color: hasInvoice && t.invoice?.tongThanhToan > 0 ? '#EF4444' : '#94A3B8' }]}
+              adjustsFontSizeToFit
+              numberOfLines={1}
+            >
+              {t.invoice?.tongThanhToan ? Math.round(t.invoice.tongThanhToan).toLocaleString('vi-VN') + ' VND' : '0 VND'}
+            </Text>
+          </View>
         </View>
       </Pressable>
     );
   };
 
   // ── TAKEAWAY CARD ───────────────────────────────────────
+  // ── TAKEAWAY CARD ───────────────────────────────────────
   const renderTakeawayCard = (order) => {
+    // Không hiện các đơn đã hoàn tất hoặc đã hủy
+    if (order.trangThai === 'HOAN_TAT' || order.trangThai === 'DA_HUY') return null;
+
     const s = getTakeawayStatusStyle(order.trangThai);
     const orderStatusStyle = getOrderStatusStyle(order.trangThai);
+    const isWaitingPayment = order.trangThai === 'CHO_THANH_TOAN';
+
+    // Xác định màu gradient dựa trên trạng thái đơn mang về
+    let gradientColors = ['#FFFFFF', '#F8FAFC']; // Mặc định
+    switch (order.trangThai) {
+      case 'CHO_XAC_NHAN': gradientColors = ['#FFFFFF', '#F1F5F9']; break;
+      case 'DANG_PHA_CHE': gradientColors = ['#FFFFFF', '#EFF6FF']; break;
+      case 'CHO_LAY_MON': gradientColors = ['#FFFFFF', '#F0FDFA']; break;
+      case 'CHO_THANH_TOAN': gradientColors = ['#FFFFFF', '#FFF7ED']; break;
+      case 'DA_THANH_TOAN': gradientColors = ['#FFFFFF', '#FEFCE8']; break;
+    }
+
+    // Lấy tóm tắt món ăn
+    const itemSummary = order.danhSachChiTiet?.length > 0
+      ? order.danhSachChiTiet.map(item => `${item.soLuong}x ${item.tenSanPham}`).join(', ')
+      : 'Không có chi tiết món';
+
     return (
       <Pressable
         key={order.idHoaDon}
-        style={[styles.tabletTableCard, { borderTopColor: s.color }]}
+        style={[
+          styles.tabletTakeawayCard,
+          { borderTopColor: s.color },
+          isWaitingPayment && styles.glowingBorder
+        ]}
         onPress={() => setSelectedTakeaway(order)}
       >
-        <View style={styles.newCardTopRow}>
-          <Text style={styles.newCardTitle}>Đơn #{order.idHoaDon}</Text>
-          <View style={[styles.newCardStatusTag, { backgroundColor: orderStatusStyle.bg }]}>
-            <View style={[styles.newCardStatusDot, { backgroundColor: orderStatusStyle.color }]} />
-            <Text style={[styles.newCardStatusText, { color: orderStatusStyle.color }]}>{orderStatusStyle.label}</Text>
+        <LinearGradient
+          colors={gradientColors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        
+        <View style={{ flex: 1 }}>
+          {/* Header Row */}
+          <View style={styles.newCardTopRow}>
+            <View>
+              <Text style={styles.newCardTitle}>Đơn #{order.idHoaDon}</Text>
+              <Text style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>
+                {formatElapsedTime(order.thoiGianTao)}
+              </Text>
+            </View>
+            <View style={[styles.newCardStatusTag, { backgroundColor: orderStatusStyle.bg }]}>
+              <View style={[styles.newCardStatusDot, { backgroundColor: orderStatusStyle.color }]} />
+              <Text style={[styles.newCardStatusText, { color: orderStatusStyle.color }]}>{orderStatusStyle.label}</Text>
+            </View>
           </View>
-        </View>
 
-        <View style={styles.newCardMiddleRow}>
-          <View style={styles.newCardInfoTag}>
-            <Text style={styles.newCardInfoIcon}>🕒</Text>
-            <Text style={styles.newCardInfoText}>{formatElapsedTime(order.thoiGianTao)}</Text>
+          {/* Details Row - Tóm tắt món */}
+          <View style={styles.newCardDetails}>
+            <Text style={styles.newCardDetailsText} numberOfLines={1}>
+              📦 {itemSummary}
+            </Text>
           </View>
-        </View>
 
-        <View style={styles.newCardBottomRow}>
-          <Text style={styles.newCardBottomLabel} numberOfLines={1}>{order.tenKhachHang || 'Khách vãng lai'}</Text>
-          <Text
-            style={[styles.newCardPriceText, { color: order.tongThanhToan > 0 ? '#EF4444' : '#94A3B8' }]}
-            adjustsFontSizeToFit
-            numberOfLines={1}
-          >
-            {order.tongThanhToan ? Math.round(order.tongThanhToan).toLocaleString('vi-VN') + ' VND' : '0 VND'}
-          </Text>
+          {/* Footer Row */}
+          <View style={styles.newCardBottomRow}>
+            <View>
+              <Text style={{ fontSize: 12, color: '#94A3B8' }}>Khách hàng</Text>
+              <Text style={styles.newCardBottomLabel} numberOfLines={1}>
+                👤 {order.tenKhachHang || 'Khách vãng lai'}
+              </Text>
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={{ fontSize: 12, color: '#94A3B8' }}>Tổng cộng</Text>
+              <Text
+                style={[styles.newCardPriceText, { color: '#059669' }]}
+                adjustsFontSizeToFit
+                numberOfLines={1}
+              >
+                {order.tongThanhToan ? Math.round(order.tongThanhToan).toLocaleString('vi-VN') + 'đ' : '0đ'}
+              </Text>
+            </View>
+          </View>
         </View>
       </Pressable>
     );
@@ -507,6 +565,18 @@ const TableMap = ({ onNavigate }) => {
       {invoiceTable && <InvoiceDetailSheet table={invoiceTable} onClose={() => setInvoiceTable(null)} onRefresh={fetchData} onOpenMenu={(tables, resId, isTakeaway, invId) => handleOpenMenu(tables, resId, isTakeaway, invId)} />}
       {editReserveTable && <EditReserveSheet table={editReserveTable} onClose={() => setEditReserveTable(null)} onRefresh={fetchData} />}
       {selectedTakeaway && <TakeawayDetailSheet invoice={selectedTakeaway} onClose={() => setSelectedTakeaway(null)} onRefresh={fetchData} onOpenMenu={(tables, res, takeaway, invId) => handleOpenMenu([], null, true, invId)} />}
+      <UserProfileModal 
+        isVisible={showProfile} 
+        onClose={() => setShowProfile(false)} 
+        onLogout={async () => { 
+          setShowProfile(false); 
+          await safeAsyncStorage.removeItem('token');
+          await safeAsyncStorage.removeItem('user');
+          // Reset navigation để không quay lại được trang TableMap bằng nút Back
+          onNavigate('Login', { reset: true });
+        }} 
+        user={currentUser}
+      />
     </View>
   );
 };

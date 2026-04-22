@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { ActivityIndicator, View } from 'react-native';
+import safeAsyncStorage from './src/utils/storage';
 
 import Login from './src/screens/Login';
 import Register from './src/screens/Register';
@@ -9,12 +11,41 @@ import TableMap from './src/screens/TableMap';
 import OrderMenu from './src/screens/OrderMenu';
 import ProductDetail from './src/screens/ProductDetail';
 import OrderSummary from './src/screens/OrderSummary';
+import OrderHistory from './src/screens/OrderHistory';
+import VerifyOTP from './src/screens/Register/VerifyOTP';
 
 const Stack = createNativeStackNavigator();
 
 const App = () => {
   // Object mapping cartId to items[]
   const [carts, setCarts] = useState({});
+  const [isCheckingToken, setIsCheckingToken] = useState(true);
+  const [initialRoute, setInitialRoute] = useState('Welcome');
+
+  useEffect(() => {
+    checkToken();
+  }, []);
+
+  const checkToken = async () => {
+    try {
+      const token = await safeAsyncStorage.getItem('token');
+      if (token) {
+        setInitialRoute('TableMap');
+      }
+    } catch (e) {
+      console.log('Error checking token', e);
+    } finally {
+      setIsCheckingToken(false);
+    }
+  };
+
+  if (isCheckingToken) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#064E3B' }}>
+        <ActivityIndicator size="large" color="#ffffff" />
+      </View>
+    );
+  }
 
   const getCartId = (params) => {
     if (!params) return 'default';
@@ -80,7 +111,7 @@ const App = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Welcome"
+        initialRouteName={initialRoute}
         screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
       >
         <Stack.Screen name="Welcome">
@@ -88,15 +119,29 @@ const App = () => {
         </Stack.Screen>
 
         <Stack.Screen name="Login">
-          {({ navigation }) => <Login onNavigate={(screen, params) => navigation.navigate(screen, params)} />}
+          {({ navigation }) => <Login onNavigate={(screen, params) => navigation.reset({ index: 0, routes: [{ name: screen, params }] })} />}
         </Stack.Screen>
 
         <Stack.Screen name="Register">
           {({ navigation }) => <Register onNavigate={(screen, params) => navigation.navigate(screen, params)} />}
         </Stack.Screen>
 
+        <Stack.Screen name="VerifyOTP">
+          {({ navigation, route }) => <VerifyOTP onNavigate={(screen, params) => navigation.navigate(screen, params)} route={route} />}
+        </Stack.Screen>
+
         <Stack.Screen name="TableMap">
-          {({ navigation }) => <TableMap onNavigate={(screen, params) => navigation.navigate(screen, params)} />}
+          {({ navigation }) => (
+            <TableMap 
+              onNavigate={(screen, params) => {
+                if (params?.reset) {
+                  navigation.reset({ index: 0, routes: [{ name: screen }] });
+                } else {
+                  navigation.navigate(screen, params);
+                }
+              }} 
+            />
+          )}
         </Stack.Screen>
 
         <Stack.Screen name="OrderMenu">
@@ -156,6 +201,10 @@ const App = () => {
               />
             );
           }}
+        </Stack.Screen>
+
+        <Stack.Screen name="OrderHistory">
+          {({ navigation }) => <OrderHistory onNavigate={(screen, params) => navigation.navigate(screen, params)} />}
         </Stack.Screen>
       </Stack.Navigator>
     </NavigationContainer>

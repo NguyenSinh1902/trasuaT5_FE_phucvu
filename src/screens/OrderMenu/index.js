@@ -33,7 +33,7 @@ const ProductCard = ({ item, onNavigate, table, isTakeaway, invoiceId, reservati
     : null;
 
   const isValidUrl = item.duongDanAnh && item.duongDanAnh !== 'null' && String(item.duongDanAnh).trim() !== '' && String(item.duongDanAnh).startsWith('http');
-  const imageUri = isValidUrl ? item.duongDanAnh : 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400';
+  const imageSource = isValidUrl ? { uri: item.duongDanAnh } : require('../../assets/images/trasuamatcha.png');
 
   const navigateToDetail = () => {
     const params = { product: item, table, isTakeaway, invoiceId, reservation, existingItem: null };
@@ -55,7 +55,7 @@ const ProductCard = ({ item, onNavigate, table, isTakeaway, invoiceId, reservati
       >
         {/* Image */}
         <View style={s.productImageWrap}>
-          <Image source={{ uri: imageUri }} style={s.productImage} resizeMode="cover" />
+          <Image source={imageSource} style={s.productImage} resizeMode="cover" />
           {hasDiscount && (
             <View style={s.discountTag}>
               <Text style={s.discountTagText}>-{maxDiscountVariant.phanTramGiamGia}%</Text>

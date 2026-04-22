@@ -1,0 +1,306 @@
+import { StyleSheet, Dimensions } from 'react-native';
+
+const { width, height } = Dimensions.get('window');
+const isTablet = width >= 700;
+
+export default StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    flexDirection: 'row',
+  },
+  sidebar: {
+    width: 280,
+    backgroundColor: '#F1F8F5',
+    paddingTop: 40, // Extra space for status bar
+    paddingBottom: 20,
+    paddingHorizontal: 16,
+    justifyContent: 'space-between',
+  },
+  mainContent: {
+    flex: 1,
+    padding: isTablet ? 32 : 16,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  titleGroup: {
+    gap: 4,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#1E293B',
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  searchBox: {
+    width: 300,
+    height: 48,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.02,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#1E293B',
+    fontWeight: '500',
+  },
+  filterBtn: {
+    height: 48,
+    paddingHorizontal: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  filterBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#475569',
+  },
+
+  // Table Styles
+  tableCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
+    elevation: 3,
+    flex: 1,
+  },
+  tableHeaderRow: {
+    flexDirection: 'row',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  headerCell: {
+    fontWeight: '800',
+    color: '#64748B',
+    fontSize: 13,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  orderRow: {
+    flexDirection: 'row',
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    alignItems: 'center',
+  },
+  cellText: {
+    fontSize: 15,
+    color: '#1E293B',
+    fontWeight: '600',
+  },
+  orderIdText: {
+    fontWeight: '800',
+    color: '#3B82F6',
+  },
+  priceText: {
+    fontWeight: '900',
+    color: '#059669',
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+
+  // Sidebar reusable styles (replicated for sync)
+  sidebarHeader: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  brandGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandLogo: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  brandLogoText: {
+    fontSize: 22,
+    color: '#34A853',
+  },
+  brandTitleGroup: {
+    marginLeft: 12,
+  },
+  brandTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#064E3B',
+  },
+  brandSubtitle: {
+    fontSize: 11,
+    color: '#059669',
+    fontWeight: '600',
+    opacity: 0.6,
+  },
+  sidebarNavContainer: {
+    backgroundColor: '#34A853',
+    borderRadius: 32,
+    paddingVertical: 24,
+    paddingHorizontal: 12,
+    gap: 8,
+    shadowColor: '#064E3B',
+    shadowOpacity: 0.2,
+    shadowRadius: 15,
+    elevation: 8,
+  },
+  sidebarItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: 'transparent',
+    marginBottom: 8,
+  },
+  sidebarItemActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  sidebarIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  sidebarIcon: {
+    fontSize: 18,
+    color: '#34A853',
+  },
+  sidebarIconActive: {
+    color: '#34A853',
+  },
+  sidebarLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginLeft: 14,
+  },
+  sidebarLabelActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    marginLeft: 14,
+  },
+  sidebarFooter: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginTop: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  userProfileGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatarWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarInitials: {
+    color: '#34A853',
+    fontWeight: '800',
+    fontSize: 18,
+  },
+  userInfoText: {
+    marginLeft: 12,
+  },
+  userName: {
+    color: '#064E3B',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  userRole: {
+    color: '#059669',
+    fontSize: 11,
+    fontWeight: '600',
+    opacity: 0.7,
+    marginTop: 2,
+  },
+  
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 100,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1E293B',
+    marginTop: 20,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#64748B',
+    marginTop: 8,
+  }
+});

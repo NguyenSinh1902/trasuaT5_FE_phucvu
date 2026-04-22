@@ -3,10 +3,40 @@ import { View, Text, Pressable, TextInput, StatusBar, ScrollView, Image, Keyboar
 import LinearGradient from 'react-native-linear-gradient';
 import ImageCarousel from '../../components/ImageCarousel';
 import styles from './Login.styles';
+import authApi from '../../api/authApi';
+import safeAsyncStorage from '../../utils/storage';
+import { Alert, ActivityIndicator } from 'react-native';
 
 const Login = ({ onNavigate }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Thông báo', 'Vui lòng nhập đầy đủ email và mật khẩu');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await authApi.login({ email, matKhau: password });
+      
+      if (response.success && response.token) {
+        await safeAsyncStorage.setItem('token', response.token);
+        await safeAsyncStorage.setItem('user', JSON.stringify(response.user));
+        
+        onNavigate && onNavigate('TableMap');
+      } else {
+        Alert.alert('Lỗi đăng nhập', response.message || 'Không thể đăng nhập vào hệ thống');
+      }
+    } catch (error) {
+      // Sử dụng trường message đã được axiosClient trích xuất
+      Alert.alert('Lỗi đăng nhập', error.message || 'Kết nối máy chủ thất bại');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : null}>
@@ -68,8 +98,9 @@ const Login = ({ onNavigate }) => {
             </View>
 
             <Pressable 
-              style={styles.submitBtnWrapper} 
-              onPress={() => onNavigate && onNavigate('TableMap')}
+              style={[styles.submitBtnWrapper, loading && { opacity: 0.7 }]} 
+              onPress={handleLogin}
+              disabled={loading}
             >
               <LinearGradient 
                 colors={['#2D5A27', '#059669']} 
@@ -77,7 +108,7 @@ const Login = ({ onNavigate }) => {
                 start={{x:0, y:0}} 
                 end={{x:1, y:0}}
               >
-                <Text style={styles.submitBtnText}>Đăng nhập</Text>
+                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Đăng nhập</Text>}
               </LinearGradient>
             </Pressable>
 

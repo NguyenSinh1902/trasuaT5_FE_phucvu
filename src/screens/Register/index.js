@@ -3,12 +3,50 @@ import { View, Text, Pressable, TextInput, StatusBar, ScrollView, Image, Keyboar
 import LinearGradient from 'react-native-linear-gradient';
 import ImageCarousel from '../../components/ImageCarousel';
 import styles from './Register.styles';
+import authApi from '../../api/authApi';
+import { Alert, ActivityIndicator } from 'react-native';
 
 const Register = ({ onNavigate }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleRegister = async () => {
+    if (!name || !email || !phone || !password || !confirmPassword) {
+      Alert.alert('Thông báo', 'Vui lòng điền đầy đủ các thông tin');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert('Lỗi', 'Mật khẩu xác nhận không khớp');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await authApi.register({
+        email,
+        matKhau: password,
+        hoTen: name,
+        soDienThoai: phone,
+        vaiTro: 'PHUC_VU' // Set vaiTro to PHUC_VU to match BE Enum
+      });
+
+      if (response.idNhanVien) {
+        Alert.alert('Thành công', 'Đăng ký thành công! Vui lòng kiểm tra mã OTP trong email.');
+        onNavigate && onNavigate('VerifyOTP', { email });
+      } else {
+        Alert.alert('Lỗi đăng ký', response.message || 'Không thể tạo tài khoản');
+      }
+    } catch (error) {
+      Alert.alert('Lỗi đăng ký', error.message || 'Kết nối thất bại');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : null}>
@@ -69,6 +107,18 @@ const Register = ({ onNavigate }) => {
             </View>
 
             <View style={styles.inputContainer}>
+              <Text style={styles.icon}>📞</Text>
+              <TextInput 
+                style={styles.input} 
+                placeholder="Số điện thoại" 
+                placeholderTextColor="#9CA3AF"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
               <Text style={styles.icon}>🔒</Text>
               <TextInput 
                 style={styles.input} 
@@ -93,8 +143,9 @@ const Register = ({ onNavigate }) => {
             </View>
 
             <Pressable 
-              style={styles.submitBtnWrapper} 
-              onPress={() => console.log('Register pressed')}
+              style={[styles.submitBtnWrapper, loading && { opacity: 0.7 }]} 
+              onPress={handleRegister}
+              disabled={loading}
             >
               <LinearGradient 
                 colors={['#2D5A27', '#059669']} 

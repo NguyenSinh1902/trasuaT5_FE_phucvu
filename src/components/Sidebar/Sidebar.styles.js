@@ -1,0 +1,188 @@
+import { StyleSheet } from 'react-native';
+
+const SidebarStyles = StyleSheet.create({
+  tabletSidebar: {
+    width: 280,
+    backgroundColor: '#F8FAFC', // Slightly cleaner background
+    paddingTop: 50, // More space for status bar
+    paddingBottom: 24,
+    paddingHorizontal: 16,
+    justifyContent: 'space-between',
+    zIndex: 10,
+    height: '100%',
+    borderRightWidth: 1,
+    borderRightColor: '#E2E8F0',
+  },
+  tabletSidebarCollapsed: {
+    width: 88,
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  sidebarHeader: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  sidebarHeaderCollapsed: {
+    paddingHorizontal: 0,
+    alignItems: 'center',
+    borderRadius: 20,
+  },
+  brandGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandLogo: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  brandLogoText: {
+    fontSize: 22,
+    color: '#34A853',
+  },
+  brandTitleGroup: {
+    marginLeft: 12,
+  },
+  brandTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#064E3B',
+  },
+  brandSubtitle: {
+    fontSize: 11,
+    color: '#059669',
+    fontWeight: '600',
+    opacity: 0.6,
+  },
+  tabletNavContainer: {
+    flex: 1,
+    backgroundColor: '#34A853',
+    borderRadius: 24,
+    paddingVertical: 20,
+    paddingHorizontal: 10,
+    gap: 4,
+    shadowColor: '#064E3B',
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 10,
+    marginVertical: 10,
+  },
+  tabletNavContainerCollapsed: {
+    paddingHorizontal: 8,
+  },
+  tabletNavItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: 'transparent',
+  },
+  tabletNavItemActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  tabletNavItemCollapsed: {
+    justifyContent: 'center',
+    paddingHorizontal: 0,
+    width: 52,
+    height: 52,
+    alignSelf: 'center',
+  },
+  tabletNavIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tabletNavIcon: {
+    fontSize: 18,
+    color: '#34A853',
+  },
+  tabletNavIconActive: {
+    color: '#34A853',
+  },
+  tabletNavLabel: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 15,
+    fontWeight: '600',
+    marginLeft: 14,
+  },
+  tabletNavLabelActive: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+    marginLeft: 14,
+  },
+  sidebarFooter: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginTop: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  sidebarFooterCollapsed: {
+    paddingHorizontal: 0,
+    alignItems: 'center',
+    borderRadius: 20,
+  },
+  userProfileGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatarWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarInitials: {
+    color: '#34A853',
+    fontWeight: '800',
+    fontSize: 18,
+  },
+  userInfoText: {
+    marginLeft: 12,
+  },
+  userName: {
+    color: '#064E3B',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  userRole: {
+    color: '#059669',
+    fontSize: 11,
+    fontWeight: '600',
+    opacity: 0.7,
+    marginTop: 2,
+  },
+});
+
+export default SidebarStyles;

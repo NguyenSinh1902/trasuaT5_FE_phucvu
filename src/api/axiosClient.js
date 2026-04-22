@@ -1,9 +1,9 @@
 import axios from 'axios';
+import safeAsyncStorage from '../utils/storage';
 
 const axiosClient = axios.create({
-  // baseURL: 'http://localhost:8080/api',
-  baseURL: 'http://10.0.2.2:8080/api', // Use 10.0.2.2 for Android Emulator to reach localhost
-  timeout: 10000,
+  baseURL: 'http://10.0.2.2:8080/api',
+  timeout: 30000, // Tăng timeout lên 30s vì gửi email có thể chậm
   headers: {
     'Content-Type': 'application/json',
   },
@@ -11,8 +11,11 @@ const axiosClient = axios.create({
 
 // Interceptors for professional handling
 axiosClient.interceptors.request.use(
-  (config) => {
-    // Add auth token here if needed: config.headers.Authorization = `Bearer ${token}`;
+  async (config) => {
+    const token = await safeAsyncStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => Promise.reject(error)
@@ -26,9 +29,25 @@ axiosClient.interceptors.response.use(
     return response;
   },
   (error) => {
-    // Handle global errors like 401, 500, etc.
-    console.error('API Error:', error.response?.data || error.message);
-    throw error;
+    // Trích xuất message chi tiết nhất có thể từ API
+    let message = 'Đã có lỗi xảy ra';
+    
+    if (error.response && error.response.data) {
+      const data = error.response.data;
+      // Ưu tiên lấy message chi tiết, sau đó đến error, title hoặc detail
+      message = data.message || data.detail || data.error || data.title || (typeof data === 'string' ? data : message);
+    } else {
+      message = error.message || message;
+    }
+
+    console.error('API Error Details:', {
+      status: error.response?.status,
+      message: message,
+      data: error.response?.data
+    });
+    
+    // Trả về một object lỗi chứa message để UI có thể hiển thị bằng Alert
+    return Promise.reject({ ...error, message });
   }
 );
 
