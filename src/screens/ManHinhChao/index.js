@@ -1,76 +1,65 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  Image,
-  StatusBar,
-} from 'react-native';
+import { View, Text, Pressable, Image, StatusBar } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import ImageCarousel from '../../components/ImageCarousel';
 import styles from './ManHinhChao.styles';
 
-const ManHinhChao = ({ navigation, onNavigate }) => {
+const ManHinhChao = ({ onNavigate }) => {
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#49514E" translucent />
-
-      {/* Decorative Background Blobs */}
-      <View style={styles.topBgShape} />
-      <View style={styles.secondaryBlob} />
-
-      {/* Floating Bubbles */}
-      <View style={styles.bubble1} />
-      <View style={styles.bubble2} />
-      <View style={styles.bubble3} />
-      <View style={styles.bubble4} />
-      <View style={styles.bubble5} />
-      <View style={styles.bubble6} />
-      <View style={styles.bubble7} />
-
-      {/* Text Container */}
-      <Text style={styles.titleText}>MatchTea</Text>
-      <Text style={styles.sloganText}>Fresh drinks, happy moments!</Text>
-
-      {/* Cups Images */}
-      <Image
-        source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3014/3014526.png' }}
-        style={styles.cupLeft}
-        resizeMode="contain"
-      />
-      <Image
-        source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3014/3014526.png' }}
-        style={styles.cupRight}
-        resizeMode="contain"
-      />
-      <Image
-        source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3014/3014526.png' }}
-        style={styles.cupCenter}
-        resizeMode="contain"
-      />
-
-      {/* Action Buttons */}
-      <View style={styles.buttonContainer}>
-        <Pressable
-          style={styles.primaryBtn}
-          android_ripple={{ color: '#ffffff55' }}
-          onPress={() => onNavigate ? onNavigate() : console.log('Navigate to Login')}
-        >
-          <Text style={styles.primaryBtnText}>Đăng nhập</Text>
-        </Pressable>
-
-        <Pressable
-          style={styles.secondaryBtn}
-          android_ripple={{ color: '#00000015' }}
-          onPress={() => onNavigate ? onNavigate() : console.log('Navigate to Register')}
-        >
-          <Text style={styles.secondaryBtnText}>Đăng Ký</Text>
-        </Pressable>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+      
+      {/* Brand Side (Left on Tablet) */}
+      <View style={styles.brandSide}>
+        <Image 
+          source={{ uri: 'https://images.unsplash.com/photo-1544424472-a1f9a2fbaf02?q=80&w=2670&auto=format&fit=crop' }} 
+          style={styles.bgImage}
+          resizeMode="cover"
+          blurRadius={32}
+        />
+        <View style={styles.blurOverlay} />
+        <View style={styles.brandTitleWrap}>
+          <View style={styles.logoRow}>
+            <Text style={styles.logoIcon}>🍵</Text>
+            <Text style={styles.brandTitleLeft}>MatchTea</Text>
+          </View>
+          <Text style={styles.brandSubtitle}>APP NHÂN VIÊN PHỤC VỤ</Text>
+        </View>
+        <ImageCarousel />
       </View>
 
-      {/* Footer Giant Layouts */}
-      <View style={styles.footerBigCircle} />
-      <View style={styles.footerMidCircle} />
-      <View style={styles.footerInnerCircle} />
+      {/* Content Side (Right on Tablet) */}
+      <View style={styles.contentSide}>
+        <View style={styles.cornerBlob} pointerEvents="none" />
+        <View style={styles.cornerBlob2} pointerEvents="none" />
+        <View style={styles.contentWrapper}>
+          <Text style={styles.titleText}>MatchTea</Text>
+          <Text style={styles.sloganText}>Quản lý thông minh - Nâng tầm trải nghiệm</Text>
+          
+          <View style={styles.buttonRow}>
+            <Pressable 
+              style={styles.primaryBtnWrapper} 
+              onPress={() => onNavigate && onNavigate('Login')}
+            >
+              <LinearGradient 
+                colors={['#2D5A27', '#059669']} 
+                start={{x: 0, y: 0}} 
+                end={{x: 1, y: 0}}
+                style={styles.primaryBtn}
+              >
+                <Text style={styles.primaryBtnText}>Đăng nhập</Text>
+              </LinearGradient>
+            </Pressable>
 
+            <Pressable 
+              style={styles.secondaryBtn} 
+              onPress={() => onNavigate && onNavigate('Register')}
+            >
+              <Text style={styles.secondaryBtnText}>Đăng ký</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
     </View>
   );
 };

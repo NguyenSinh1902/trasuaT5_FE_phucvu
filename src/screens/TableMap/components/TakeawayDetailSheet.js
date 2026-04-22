@@ -106,8 +106,9 @@ const TakeawayDetailSheet = ({ invoice, onClose, onRefresh, onOpenMenu }) => {
 
   return (
     <Modal visible={!!invoice} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.sheetBackdrop} onPress={onClose} />
-      <View style={[styles.sheetContainer, { height: '85%' }]}>
+      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <Pressable style={styles.sheetBackdrop} onPress={onClose} />
+        <View style={[styles.sheetContainer, { flexShrink: 1 }]}>
         <View style={styles.sheetHandle} />
 
         <View style={styles.sheetHeaderRow}>
@@ -180,6 +181,7 @@ const TakeawayDetailSheet = ({ invoice, onClose, onRefresh, onOpenMenu }) => {
         </Modal>
 
         {(loading || editing) && <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color="#FFD700" /></View>}
+        </View>
       </View>
     </Modal>
   );

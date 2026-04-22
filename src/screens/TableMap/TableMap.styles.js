@@ -169,10 +169,13 @@ const styles = StyleSheet.create({
 
   // ===================== BOTTOM SHEET =====================
   sheetBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)', // Darker for focus
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)', 
   },
   sheetContainer: {
+    width: '100%',
+    maxWidth: 720,
+    alignSelf: 'center',
     backgroundColor: '#1E1E1E',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
@@ -425,6 +428,569 @@ const styles = StyleSheet.create({
     includeFontPadding: false, // Android specific centering fix
     textAlignVertical: 'center', // Android specific centering fix
     marginTop: sh(-4), // Micro-adjustment for visual centering
+  },
+  // ===================== TABLET/POS SPECIFIC STYLES (PREMIUM UI) =====================
+  tabletContainer: {
+    flexDirection: 'row',
+    flex: 1,
+    backgroundColor: '#EAF3EF', // Premium Light Matcha Background
+  },
+
+  // --- SIDEBAR ---
+  tabletSidebar: {
+    width: 260,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 24,
+    borderRightWidth: 1,
+    borderColor: '#E2E8F0',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 4, height: 0 },
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
+    elevation: 5,
+    zIndex: 10,
+  },
+  tabletSidebarCollapsed: {
+    width: 88,
+    alignItems: 'center',
+  },
+  sidebarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 40,
+    justifyContent: 'space-between',
+  },
+  sidebarHeaderCollapsed: {
+    justifyContent: 'center',
+    paddingHorizontal: 0,
+  },
+  brandGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandLogo: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#E8F3EE',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  brandLogoText: {
+    fontSize: 22,
+    color: '#34A853', // MatchTea Green
+  },
+  brandTitleGroup: {
+    marginLeft: 12,
+  },
+  brandTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1E293B',
+  },
+  brandSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  collapseBtn: { display: 'none' }, // Removed top collapse
+  collapseIcon: { display: 'none' },
+
+  sidebarToggleBottom: {
+    height: 48,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+  sidebarToggleIcon: {
+    fontSize: 28,
+    color: '#64748B',
+    fontWeight: '300',
+    marginTop: -4,
+  },
+
+  // --- NAV ITEMS ---
+  tabletNavContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  tabletNavContainerCollapsed: {
+    paddingHorizontal: 8,
+  },
+  tabletNavItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    backgroundColor: 'transparent',
+  },
+  tabletNavItemActive: {
+    backgroundColor: '#34A853',
+    shadowColor: '#34A853',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+  },
+  tabletNavItemCollapsed: {
+    justifyContent: 'center',
+    paddingHorizontal: 0,
+    width: 56,
+    height: 56,
+    alignSelf: 'center',
+  },
+  tabletNavIcon: {
+    fontSize: 20,
+    color: '#64748B',
+  },
+  tabletNavIconActive: {
+    color: '#FFFFFF',
+  },
+  tabletNavLabel: {
+    color: '#64748B',
+    fontSize: 15,
+    fontWeight: '600',
+    marginLeft: 14,
+  },
+  tabletNavLabelActive: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+    marginLeft: 14,
+  },
+
+  // --- USER PROFILE (BOTTOM SIDEBAR) ---
+  sidebarFooter: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  sidebarFooterCollapsed: {
+    paddingHorizontal: 0,
+    alignItems: 'center',
+  },
+  userProfileGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatarWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  avatarInitials: {
+    color: '#34A853',
+    fontWeight: '700',
+    fontSize: 18,
+  },
+  userInfoText: {
+    marginLeft: 12,
+  },
+  userName: {
+    color: '#1E293B',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  userRole: {
+    color: '#64748B',
+    fontSize: 13,
+    marginTop: 2,
+  },
+
+  // --- MAIN CONTENT ---
+  tabletMain: {
+    flex: 1,
+    backgroundColor: '#EAF3EF', // Light Matcha Background
+  },
+
+  // --- TOP HEADER (MAIN) ---
+  topHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 32,
+    paddingTop: 32,
+    paddingBottom: 24,
+  },
+
+  // Segmented Control
+  globalToggle: {
+    flexDirection: 'row',
+    backgroundColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 4,
+    height: 46,
+    width: 240,
+  },
+  toggleTab: {
+    flex: 1,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  toggleTabActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  toggleTextInactive: {
+    color: '#64748B',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  toggleTextActive: {
+    color: '#1E293B',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+
+  // Search & Filter
+  searchFilterGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  searchBarWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    height: 48,
+    width: 320,
+    paddingHorizontal: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  searchIconOuter: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  searchIconInner: {
+    fontSize: 20,
+    color: '#64748B',
+    fontWeight: '300',
+    transform: [{ rotate: '45deg' }, { scaleX: -1 }],
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#1E293B',
+    height: '100%',
+    paddingVertical: 0,
+  },
+  filterBtn: {
+    width: 48,
+    height: 48,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  filterBtnIcon: {
+    fontSize: 24,
+    color: '#64748B',
+    fontWeight: '300',
+  },
+  tabletNotiBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  tabletNotiBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+
+  // --- GRID ---
+  tabletGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 180, // Safe space for vertically stacked FABs
+    justifyContent: 'flex-start',
+  },
+  tabletTableCard: {
+    width: '23%',
+    minWidth: 200,
+    height: 140,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    marginHorizontal: '1%',
+    marginBottom: 20,
+    paddingTop: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    borderTopWidth: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+    // Soft Shadow
+    shadowColor: '#64748B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  newCardTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  newCardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  newCardStatusTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 12,
+    gap: 4,
+    marginLeft: 8, // Khoảng cách tránh bị dính vào tên bàn
+  },
+  newCardStatusDot: {
+    width: 7, height: 7, borderRadius: 3.5,
+  },
+  newCardStatusText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  newCardMiddleRow: {
+    flexDirection: 'row',
+    justifyContent: 'center', // Căn giữa đồng hồ
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  newCardInfoTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+  },
+  newCardInfoIcon: {
+    fontSize: 13,
+  },
+  newCardInfoText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    letterSpacing: 0.5,
+  },
+  newCardBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  newCardBottomLabel: {
+    fontSize: 15,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  newCardPriceText: {
+    fontSize: 20,
+    fontWeight: '700',
+    flexShrink: 1, // ensure it doesn't push the label out
+    textAlign: 'right',
+  },
+  legendGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 20,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  legendText: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+
+  // --- FABs (Floating Action Buttons) ---
+  fabContainer: {
+    position: 'absolute',
+    bottom: 32,
+    right: 40,
+    flexDirection: 'column', // Xếp chồng lên nhau theo chiều dọc
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 16,
+    zIndex: 999,
+  },
+  premiumFab: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+  },
+  premiumFabIcon: {
+    fontSize: 22,
+    color: '#FFF',
+  },
+  premiumFabText: { display: 'none' },
+
+  // --- BOTTOM MODALS CONTAINER ---
+  bottomModalContainer: {
+    position: 'absolute',
+    bottom: 50, // Cách đáy nhiều hơn FABs một chút
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 998,
+    pointerEvents: 'box-none',
+  },
+  statsModalCard: {
+    backgroundColor: '#064E3B', // Deep Emerald/Matcha Dark
+    borderRadius: 24,
+    paddingHorizontal: 40,
+    paddingVertical: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.3,
+    shadowRadius: 32,
+    elevation: 24,
+    gap: 40,
+    borderWidth: 1,
+    borderColor: '#047857',
+  },
+  statsBannerCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statsBannerIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  statsBannerTextGroup: {
+    justifyContent: 'center',
+  },
+  statsBannerLabel: {
+    color: '#A7F3D0', // Light Mint for readability on dark background
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  statsBannerValue: {
+    color: '#FFFFFF',
+    fontSize: 26,
+    fontWeight: '800',
+  },
+  statsBannerDivider: {
+    width: 1,
+    height: 50,
+    backgroundColor: '#047857',
+  },
+
+  // --- PROMO MODAL CONTENT ---
+  promoModalCard: {
+    width: 480,
+    backgroundColor: '#FFFBEB', // Warm cream - tone ấm áp phù hợp icon quà
+    borderRadius: 20,
+    paddingHorizontal: 28,
+    paddingVertical: 22,
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 14,
+    borderWidth: 1.5,
+    borderColor: '#FDE68A', // Viền vàng nhạt
+  },
+  promoModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  promoModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#92400E', // Nâu ấm
+  },
+  promoModalClose: {
+    fontSize: 22,
+    color: '#D97706',
+    fontWeight: '400',
+    padding: 4,
+  },
+  promoModalDivider: {
+    height: 1,
+    backgroundColor: '#FDE68A',
+    marginBottom: 16,
+  },
+  promoModalEmpty: {
+    fontSize: 15,
+    color: '#B45309', // Nâu cam ấm
+    textAlign: 'center',
+    paddingVertical: 20,
+    fontWeight: '500',
   },
 });
 

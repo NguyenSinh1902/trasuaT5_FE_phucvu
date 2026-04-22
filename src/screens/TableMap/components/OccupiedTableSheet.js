@@ -1,13 +1,36 @@
-import React, { useState } from 'react';
-import { View, Text, Modal, Pressable, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Modal, Pressable, ScrollView, ActivityIndicator, Alert, useWindowDimensions } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import styles from '../TableMap.styles';
 import reservationApi from '../../../api/reservationApi';
 import orderApi from '../../../api/orderApi';
 
 const OccupiedTableSheet = ({ table, tables, onClose, onUpdateGuest, onRefresh, onOpenMenu, onViewInvoice }) => {
   const [loading, setLoading] = useState(false);
   const [actionType, setActionType] = useState(null); // 'merge', 'change', null
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 700;
+  const [elapsedTime, setElapsedTime] = useState('00:00:00');
+
+  useEffect(() => {
+    let timer;
+    const startTimeStr = table?.invoice?.thoiGianTao || table?.reservation?.thoiGianDat;
+
+    if (startTimeStr) {
+      const startMs = new Date(startTimeStr).getTime();
+      const updateTimer = () => {
+        const diffMs = Math.max(0, Date.now() - startMs);
+        const hours = Math.floor(diffMs / 3600000).toString().padStart(2, '0');
+        const minutes = Math.floor((diffMs % 3600000) / 60000).toString().padStart(2, '0');
+        const seconds = Math.floor((diffMs % 60000) / 1000).toString().padStart(2, '0');
+        setElapsedTime(`${hours}:${minutes}:${seconds}`);
+      };
+      updateTimer();
+      timer = setInterval(updateTimer, 1000);
+    } else {
+      setElapsedTime('00:00:00');
+    }
+    return () => clearInterval(timer);
+  }, [table]);
 
   if (!table) return null;
 
@@ -81,8 +104,8 @@ const OccupiedTableSheet = ({ table, tables, onClose, onUpdateGuest, onRefresh, 
       'Bạn muốn gửi yêu cầu thanh toán cho hóa đơn này?',
       [
         { text: 'Bỏ qua', style: 'cancel' },
-        { 
-          text: 'Xác nhận', 
+        {
+          text: 'Xác nhận',
           onPress: async () => {
             setLoading(true);
             try {
@@ -91,7 +114,6 @@ const OccupiedTableSheet = ({ table, tables, onClose, onUpdateGuest, onRefresh, 
               onClose();
               Alert.alert('Thành công', 'Đã chuyển trạng thái Đang Chờ Thanh Toán.');
             } catch (err) {
-              console.error('Request payment error:', err);
               Alert.alert('Lỗi', 'Không thể gửi yêu cầu thanh toán. Vui lòng thử lại sau.');
             } finally {
               setLoading(false);
@@ -102,139 +124,170 @@ const OccupiedTableSheet = ({ table, tables, onClose, onUpdateGuest, onRefresh, 
     );
   };
 
+  const ActionButton = ({ title, icon, onPress, bgColor, gradient, textColor, borderColor, isActive, containerStyle, horizontal, shadowColor }) => (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        {
+          flexDirection: horizontal ? 'row' : 'column',
+          backgroundColor: bgColor || 'transparent',
+          borderRadius: 16,
+          justifyContent: 'center',
+          alignItems: 'center',
+          borderWidth: borderColor ? 1.5 : 0,
+          borderColor: borderColor || 'transparent',
+          opacity: pressed ? 0.8 : 1,
+          transform: [{ scale: pressed ? 0.95 : (isActive ? 0.98 : 1) }],
+          shadowColor: shadowColor || bgColor || (gradient && gradient[1]) || '#000',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: pressed || borderColor ? 0 : 0.3,
+          shadowRadius: 10,
+          elevation: pressed ? 0 : 5,
+        },
+        containerStyle,
+        isActive && { borderWidth: 2, borderColor: '#059669', shadowOpacity: 0.1 }
+      ]}
+    >
+      {gradient && <LinearGradient colors={gradient} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16 }} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />}
+      <Text style={{ fontSize: horizontal ? 22 : 32, marginRight: horizontal ? 8 : 0, marginBottom: horizontal ? 0 : 6, zIndex: 1 }}>{icon}</Text>
+      <Text style={{ color: textColor, fontSize: isTablet ? 15 : 13, fontWeight: '800', letterSpacing: 0.5, zIndex: 1 }} adjustsFontSizeToFit numberOfLines={1}>{title}</Text>
+    </Pressable>
+  );
+
   return (
-    <Modal visible={!!table} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.sheetBackdrop} onPress={onClose} />
-      <View style={styles.sheetContainer}>
-        <View style={styles.sheetHandle} />
+    <Modal visible={!!table} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+      <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.65)', justifyContent: 'center', alignItems: 'center' }}>
+        <Pressable style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 }} onPress={onClose} />
 
-        {/* Header */}
-        <View style={styles.sheetHeaderRow}>
-          <View>
-            <Text style={styles.sheetTitle}>{table.tenBan || 'Bàn không tên'}</Text>
-            <Text style={[styles.sheetSubtitle, table.invoice?.trangThai === 'CHO_THANH_TOAN' && { color: '#FFD700' }, table.invoice?.trangThai === 'DA_THANH_TOAN' && { color: '#9810FA' }]}>
-              {table.invoice?.trangThai === 'CHO_THANH_TOAN' ? 'Chờ Thanh Toán 🔔' : 
-               table.invoice?.trangThai === 'DA_THANH_TOAN' ? 'Đã Thanh Toán' : 'Đang Phục Vụ'}
-            </Text>
+        <View style={{
+          width: isTablet ? '65%' : '92%',
+          backgroundColor: 'rgba(255, 255, 255, 0.98)',
+          borderRadius: 24,
+          borderWidth: 1,
+          borderColor: 'rgba(255,255,255,0.8)',
+          padding: isTablet ? 36 : 24,
+          paddingBottom: isTablet ? 32 : 24,
+          shadowColor: '#2E7D32', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.1, shadowRadius: 40, elevation: 20
+        }}>
+          {/* Trang trí: Gradient Glow Blobs */}
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', borderRadius: 24 }} pointerEvents="none">
+            <LinearGradient colors={['rgba(5, 150, 105, 0.2)', 'transparent']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', top: -50, left: -50, width: 250, height: 250, borderRadius: 125 }} />
+            <LinearGradient colors={['rgba(245, 158, 11, 0.2)', 'transparent']} start={{ x: 1, y: 1 }} end={{ x: 0, y: 0 }} style={{ position: 'absolute', bottom: -50, right: -50, width: 250, height: 250, borderRadius: 125 }} />
           </View>
-          <Pressable style={styles.sheetCloseBtn} onPress={onClose}>
-            <Text style={styles.sheetCloseBtnText}>✕</Text>
+
+          {/* Close Button */}
+          <Pressable style={{ position: 'absolute', top: 16, right: 16, width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', zIndex: 10 }} onPress={onClose}>
+            <Text style={{ fontSize: 18, color: '#64748B', fontWeight: 'bold' }}>✕</Text>
           </Pressable>
-        </View>
 
-        {/* Stats row */}
-        <View style={styles.occStatRow}>
-          <View style={styles.occStatBox}>
-            <Text style={styles.occStatLabel}>Giờ vào</Text>
-            <Text style={styles.occStatValue}>
-              {table.invoice?.thoiGianTao ? new Date(table.invoice.thoiGianTao).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) : 
-               table.reservation?.thoiGianDat ? table.reservation.thoiGianDat.slice(11, 16) : '--:--'}
+          {/* HEADER */}
+          <View style={{ marginBottom: 28 }}>
+            <Text style={{ fontSize: isTablet ? 32 : 28, fontWeight: '900', color: '#1E293B', marginBottom: 4 }}>{table.tenBan || 'Bàn không tên'}</Text>
+            <Text style={{ fontSize: isTablet ? 18 : 16, fontWeight: '700', color: table.invoice?.trangThai === 'CHO_THANH_TOAN' ? '#D97706' : '#059669' }}>
+              {table.invoice?.trangThai === 'CHO_THANH_TOAN' ? 'Chở Thanh Toán 🔔' :
+                table.invoice?.trangThai === 'DA_THANH_TOAN' ? 'Đã Thanh Toán' : 'Đang Phục Vụ'}
             </Text>
           </View>
-          <View style={[styles.occStatBox, { marginLeft: 12 }]}>
-            <Text style={styles.occStatLabel}>Thời gian ngồi</Text>
-            <Text style={styles.occStatValue}>
-              {(() => {
-                const startTime = table.invoice?.thoiGianTao || table.reservation?.thoiGianDat;
-                if (!startTime) return '0 phút';
-                const diffMs = new Date() - new Date(startTime);
-                const diffMins = Math.floor(diffMs / 60000);
-                return `${Math.max(0, diffMins)} phút`;
-              })()}
-            </Text>
+
+          {/* MIDDLE CONTENT: 2 Columns */}
+          <View style={{ flexDirection: isTablet ? 'row' : 'column', gap: isTablet ? 32 : 16, marginBottom: 32 }}>
+
+            {/* CỘT TRÁI (Dashboard) */}
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', backgroundColor: '#F8FAFC', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E2E8F0', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flex: 1, alignItems: 'center' }}>
+                  <Text style={{ color: '#64748B', fontSize: 13, fontWeight: '500' }}>🕒 Giờ vào</Text>
+                  <Text style={{ color: '#1E293B', fontSize: 18, fontWeight: '700', marginTop: 4 }}>
+                    {table.invoice?.thoiGianTao ? new Date(table.invoice.thoiGianTao).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) :
+                      table.reservation?.thoiGianDat ? table.reservation.thoiGianDat.slice(11, 16) : '--:--'}
+                  </Text>
+                </View>
+                <View style={{ width: 1, backgroundColor: '#E2E8F0', height: 40 }} />
+                <View style={{ flex: 1, alignItems: 'center' }}>
+                  <Text style={{ color: '#64748B', fontSize: 13, fontWeight: '500' }}>⏳ Đã ngồi</Text>
+                  <Text style={{ color: '#1E293B', fontSize: 18, fontWeight: '700', marginTop: 4 }}>{elapsedTime}</Text>
+                </View>
+                <View style={{ width: 1, backgroundColor: '#E2E8F0', height: 40 }} />
+                <View style={{ flex: 1, alignItems: 'center' }}>
+                  <Text style={{ color: '#64748B', fontSize: 13, fontWeight: '500' }}>👤 Số khách</Text>
+                  <Text style={{ color: '#1E293B', fontSize: 18, fontWeight: '700', marginTop: 4 }}>{table.reservation?.soLuongNguoi || table.invoice?.soLuongKhach || 0}</Text>
+                </View>
+              </View>
+
+              {/* Hiển thị chọn bàn ngay bên dưới cột này nếu ActionType tồn tại */}
+              {actionType && (
+                <View style={{ backgroundColor: '#F8FAFC', borderRadius: 16, padding: 16, marginTop: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                  <Text style={{ color: '#475569', fontSize: 13, marginBottom: 12, fontWeight: '600' }}>
+                    {actionType === 'merge' ? 'Chọn bàn trống để gộp:' : 'Chọn bàn trống để đổi sang:'}
+                  </Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center' }}>
+                    {emptyTables.length > 0 ? emptyTables.map(t => (
+                      <Pressable
+                        key={t.idBan}
+                        onPress={() => actionType === 'merge' ? handleMerge(t.idBan) : handleChangeTable(t.idBan)}
+                        style={({ pressed }) => [{
+                          paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12,
+                          backgroundColor: '#FFFFFF', marginRight: 10, borderWidth: 1.5, borderColor: actionType === 'merge' ? '#2E7D32' : '#D97706',
+                          opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.95 : 1 }]
+                        }]}>
+                        <Text style={{ color: actionType === 'merge' ? '#2E7D32' : '#B45309', fontWeight: '700', fontSize: 15 }}>{t.tenBan}</Text>
+                      </Pressable>
+                    )) : <Text style={{ color: '#94A3B8', fontSize: 14, fontStyle: 'italic' }}>Không có bàn trống</Text>}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
+
+            {/* CỘT PHẢI (Grid Nút tác vụ 2x2) */}
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 }}>
+                <ActionButton containerStyle={{ width: '48%', height: 85 }} title="Gộp bàn" icon="➕" gradient={['#F0FDF4', '#DCFCE7']} textColor="#065F46" shadowColor="#34D399" isActive={actionType === 'merge'} onPress={() => setActionType(actionType === 'merge' ? null : 'merge')} />
+                <ActionButton containerStyle={{ width: '48%', height: 85 }} title="Đổi bàn" icon="🔄" gradient={['#F0FDF4', '#DCFCE7']} textColor="#065F46" shadowColor="#34D399" isActive={actionType === 'change'} onPress={() => setActionType(actionType === 'change' ? null : 'change')} />
+
+                <ActionButton containerStyle={{ width: '48%', height: 85 }} title="Gọi món" icon="📋" gradient={['#34D399', '#059669']} textColor="#FFFFFF" shadowColor="#047857" onPress={() => { onOpenMenu && onOpenMenu([table], reservationId, false, table.invoice?.idHoaDon); onClose(); }} />
+                <ActionButton containerStyle={{ width: '48%', height: 85 }} title="Hóa đơn" icon="🧾" gradient={['#34D399', '#059669']} textColor="#FFFFFF" shadowColor="#047857" onPress={() => { onViewInvoice && onViewInvoice(table); onClose(); }} />
+              </View>
+            </View>
+
           </View>
-        </View>
 
-        {/* Total price card */}
-        <LinearGradient
-          colors={
-            table.invoice?.trangThai === 'CHO_THANH_TOAN' ? ['rgba(255,215,0,0.25)', 'rgba(255,165,0,0.15)'] :
-            table.invoice?.trangThai === 'DA_THANH_TOAN' ? ['rgba(152,16,250,0.2)', 'rgba(108,108,108,0.1)'] :
-            ['rgba(255,68,68,0.15)', 'rgba(255,68,68,0.08)']
-          }
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          style={[styles.occPriceCard, { borderColor: table.invoice?.trangThai === 'CHO_THANH_TOAN' ? '#FFD700' : 
-                                                    table.invoice?.trangThai === 'DA_THANH_TOAN' ? '#9810FA' : 'rgba(255,68,68,0.3)' }]}>
-          <Text style={styles.occPriceLabel}>Tổng tạm tính</Text>
-          <Text style={[styles.occPriceValue, { color: table.invoice?.trangThai === 'CHO_THANH_TOAN' ? '#FFD700' : 
-                                                      table.invoice?.trangThai === 'DA_THANH_TOAN' ? '#9810FA' : '#FF4444' }]}>
-            {table.invoice?.tongThanhToan?.toLocaleString('vi-VN') || '0'}₫
-          </Text>
-          <Text style={styles.occGuestCount}>{table.reservation?.soLuongNguoi || table.invoice?.soLuongKhach || 0} khách</Text>
-        </LinearGradient>
+          {/* Kẻ chân ngang xám */}
+          <View style={{ height: 1.5, backgroundColor: '#F1F5F9', marginBottom: 24, width: '100%' }} />
 
-        {/* Action Buttons */}
-        <View style={{ marginBottom: 16 }}>
-          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
-            <Pressable
-              style={[styles.occBtnGhost, { flex: 1, marginBottom: 0, borderColor: actionType === 'merge' ? '#8BA367' : 'rgba(255,255,255,0.15)' }]}
-              onPress={() => setActionType(actionType === 'merge' ? null : 'merge')}>
-              <Text style={[styles.occBtnGhostText, actionType === 'merge' && { color: '#8BA367' }]}>➕ Gộp thêm bàn</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.occBtnGhost, { flex: 1, marginBottom: 0, borderColor: actionType === 'change' ? '#FFD700' : 'rgba(255,255,255,0.15)' }]}
-              onPress={() => setActionType(actionType === 'change' ? null : 'change')}>
-              <Text style={[styles.occBtnGhostText, actionType === 'change' && { color: '#FFD700' }]}>🔄 Đổi bàn</Text>
-            </Pressable>
-          </View>
+          {/* FOOTER ROW (Align-items: center, Justify-content: space-between) */}
+          <View style={{ flexDirection: isTablet ? 'row' : 'column', alignItems: isTablet ? 'center' : 'stretch', justifyContent: 'space-between', gap: 16 }}>
 
-          {/* Sub-action: Table Selection */}
-          {actionType && (
-            <View style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 12, marginBottom: 10 }}>
-              <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, marginBottom: 8 }}>
-                {actionType === 'merge' ? 'Chọn bàn trống để gộp:' : 'Chọn bàn trống để đổi sang:'}
+            {/* TỔNG TẠM TÍNH (Nằm gọn gàng bên trái) */}
+            <LinearGradient colors={['#F0FDF4', '#DCFCE7']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 16, borderWidth: 1, borderColor: '#BBF7D0', shadowColor: '#22C55E', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 2 }}>
+              <Text style={{ color: '#166534', fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginRight: 20 }}>Tổng Tạm Tính</Text>
+              <Text style={{ color: '#DC2626', fontSize: 26, fontWeight: '900' }} adjustsFontSizeToFit numberOfLines={1}>
+                {table.invoice?.tongThanhToan?.toLocaleString('vi-VN') || '0'} đ
               </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {emptyTables.length > 0 ? emptyTables.map(t => (
-                  <Pressable
-                    key={t.idBan}
-                    onPress={() => actionType === 'merge' ? handleMerge(t.idBan) : handleChangeTable(t.idBan)}
-                    style={{
-                      paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
-                      backgroundColor: actionType === 'merge' ? 'rgba(139,163,103,0.3)' : 'rgba(255,215,0,0.2)',
-                      marginRight: 8, borderWidth: 1, borderColor: actionType === 'merge' ? '#8BA367' : '#FFD700'
-                    }}>
-                    <Text style={{ color: actionType === 'merge' ? '#8BA367' : '#FFD700', fontWeight: '600' }}>{t.tenBan}</Text>
-                  </Pressable>
-                )) : <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>Không có bàn trống</Text>}
-              </ScrollView>
+            </LinearGradient>
+
+            {/* ACTION BOTTOM (Hủy & Thanh toán - nằm bên phải) */}
+            <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'flex-end' }}>
+              {/* Cảnh báo: Hủy Phiếu đặt */}
+              <ActionButton
+                title="Hủy phiếu" icon="⊗" gradient={['#FEF2F2', '#FEE2E2']} textColor="#B91C1C" borderColor="#FECACA" shadowColor="#F87171"
+                horizontal containerStyle={{ paddingHorizontal: 20, height: 55 }}
+                onPress={handleCancel}
+              />
+              {/* Hành động lõi: Yêu cầu Thanh toán */}
+              <ActionButton
+                title="Yêu cầu thanh toán" icon="💳" gradient={['#FDE68A', '#F59E0B']} textColor="#78350F" shadowColor="#D97706"
+                horizontal containerStyle={{ paddingHorizontal: 24, height: 55 }}
+                onPress={handleRequestPayment}
+              />
+            </View>
+          </View>
+
+          {loading && (
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.75)', justifyContent: 'center', alignItems: 'center', borderRadius: 24, zIndex: 100 }}>
+              <ActivityIndicator size="large" color="#2E7D32" />
             </View>
           )}
-
-          <Pressable
-            style={[styles.occBtnGhost, { backgroundColor: 'rgba(251,44,54,0.1)', borderColor: 'rgba(251,44,54,0.3)' }]}
-            onPress={handleCancel}>
-            <Text style={[styles.occBtnGhostText, { color: '#FFA2A2' }]}>⊗ Hủy phiếu đặt / trả bàn</Text>
-          </Pressable>
         </View>
-
-        {/* Footer Actions */}
-        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
-          <LinearGradient colors={['#5a7a8a', '#3d5a6a']} style={[styles.confirmBtn, { flex: 1 }]}>
-            <Pressable style={styles.confirmBtnInner} onPress={() => { onViewInvoice && onViewInvoice(table); onClose(); }}>
-              <Text style={styles.confirmBtnText}>🧾 Hóa đơn</Text>
-            </Pressable>
-          </LinearGradient>
-          <LinearGradient colors={['#8BA367', '#6B8E4E']} style={[styles.confirmBtn, { flex: 1 }]}>
-            <Pressable style={styles.confirmBtnInner} onPress={() => { onOpenMenu && onOpenMenu([table], reservationId, false, table.invoice?.idHoaDon); onClose(); }}>
-              <Text style={styles.confirmBtnText}>📋 Gọi món</Text>
-            </Pressable>
-          </LinearGradient>
-        </View>
-
-        <LinearGradient colors={['#FFD700', '#FFA500']} style={styles.confirmBtn}>
-          <Pressable 
-            style={styles.confirmBtnInner} 
-            onPress={handleRequestPayment}>
-            <Text style={[styles.confirmBtnText, { color: '#1A1A1A', fontWeight: '700' }]}>💳 Yêu cầu thanh toán</Text>
-          </Pressable>
-        </LinearGradient>
-
-        {loading && (
-          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', borderRadius: 32 }}>
-            <ActivityIndicator size="large" color="#8BA367" />
-          </View>
-        )}
       </View>
     </Modal>
   );

@@ -1,205 +1,188 @@
 import { StyleSheet, Dimensions } from 'react-native';
 
-const { width, height } = Dimensions.get('window');
-const BASE_W = 414;
-const BASE_H = 896;
-
-const sw = (size) => (width / BASE_W) * size;
-const sh = (size) => (height / BASE_H) * size;
-const mod = (size, factor = 0.5) => size + (sw(size) - size) * factor;
+const { width } = Dimensions.get('window');
+const isTablet = width > 768;
 
 const COLORS = {
-  cardBg: 'rgba(93, 82, 82, 0.24)',
+  primary: '#2D5A27',
+  bgLight: '#E8F5E9',
   white: '#FFFFFF',
-  accentText: '#FFECCF',
-  tabActiveBg: '#242928',
-  tabInactiveBg: '#BAC8C3',
-  inputBg: '#FFFFFF',
-  inputBorder: '#EEEFF1',
+  gold: '#D4AF37',
+  textHeader: '#2D5A27',
+  textSub: '#6B7280',
+  inputBg: 'rgba(255, 255, 255, 0.9)',
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    overflow: 'hidden',
+    flexDirection: isTablet ? 'row' : 'column',
+    backgroundColor: COLORS.bgLight,
   },
-  backgroundGradient: {
+  brandSide: {
+    flex: isTablet ? 1.2 : 0, 
+    display: isTablet ? 'flex' : 'none',
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bgImage: {
     ...StyleSheet.absoluteFillObject,
   },
-  titleText: {
+  blurOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(232, 245, 233, 0.65)',
+  },
+  brandTitleWrap: {
     position: 'absolute',
-    width: width,
-    top: sh(88),
-    textAlign: 'center',
-    color: COLORS.white,
-    fontSize: mod(36),
-    fontWeight: '800',
-    letterSpacing: 0.72,
+    top: 30,
+    left: 40,
     zIndex: 10,
-  },
-  sloganText: {
-    position: 'absolute',
-    width: width,
-    top: sh(134),
-    textAlign: 'center',
-    color: COLORS.accentText,
-    fontSize: mod(13, 0.3),
-    fontWeight: '400',
-    zIndex: 10,
-  },
-  cardContainer: {
-    position: 'absolute',
-    width: sw(320),
-    height: sh(435), // Shorter card for Login
-    left: sw(47),
-    top: sh(218),
-    backgroundColor: COLORS.cardBg,
-    borderRadius: sw(30),
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    zIndex: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 25 },
-    shadowOpacity: 0.25,
-    shadowRadius: 50,
-  },
-  toggleContainer: {
-    position: 'absolute',
-    width: sw(297),
-    height: sh(50),
-    left: sw(11.5),
-    top: sh(32), 
-    backgroundColor: COLORS.tabInactiveBg,
-    borderRadius: sw(35),
-    borderWidth: 1,
-    borderColor: '#242928',
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: sw(2),
-  },
-  toggleActiveBackground: {
-    position: 'absolute',
-    width: sw(158),
-    height: sh(46),
-    left: sw(2), // Login tab active
-    top: sh(1),
-    backgroundColor: COLORS.tabActiveBg,
-    borderRadius: sw(35),
-  },
-  toggleBtn: {
-    flex: 1,
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 2,
-  },
-  toggleTextActive: {
-    color: COLORS.tabInactiveBg,
-    fontSize: mod(13),
-    fontWeight: '600',
-  },
-  toggleTextInactive: {
-    color: '#242928',
-    fontSize: mod(13),
-    fontWeight: '600',
-  },
-  
-  // Flexbox Form Container
-  formContainer: {
-    position: 'absolute',
-    top: sh(115), 
-    left: sw(11.5),
-    width: sw(297),
     flexDirection: 'column',
   },
-  inputWrapper: {
-    width: '100%',
-    marginBottom: sh(22), // Even spacing!
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  labelText: {
-    color: COLORS.white,
-    fontSize: mod(12),
-    fontWeight: '500',
-    marginBottom: sh(8),
-    marginLeft: sw(15),
+  logoIcon: {
+    fontSize: isTablet ? 28 : 24,
+    marginRight: 6,
+    textShadowColor: 'rgba(255,255,255,0.8)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  brandTitle: {
+    fontSize: isTablet ? 28 : 24,
+    fontWeight: '900',
+    color: '#064E3B', 
+    textShadowColor: 'rgba(255,255,255,0.8)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
+  },
+  brandSubtitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#059669',
+    letterSpacing: 2,
+    marginTop: -2,
+    marginLeft: 4, 
+    opacity: 0.9,
+  },
+  formSide: {
+    flex: 1,
+    backgroundColor: isTablet ? COLORS.white : COLORS.bgLight, 
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  cornerBlob: {
+    position: 'absolute',
+    bottom: -150,
+    right: -100,
+    width: 400,
+    height: 400,
+    borderRadius: 200,
+    backgroundColor: 'rgba(209, 250, 229, 0.4)', // Nghệ thuật góc
+  },
+  cornerBlob2: {
+    position: 'absolute',
+    top: -100,
+    right: -150,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: 'rgba(232, 245, 233, 0.5)',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    zIndex: 2,
+  },
+  formWrapper: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: 'rgba(0, 0, 0, 0.03)', // Kính mờ hơi đen
+    padding: 32,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.9)',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.05,
+    shadowRadius: 20,
+    elevation: 0, 
+  },
+  headerText: {
+    fontSize: isTablet ? 32 : 28,
+    fontWeight: '800',
+    color: COLORS.textHeader,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  subHeaderText: {
+    fontSize: 16,
+    color: COLORS.textSub,
+    textAlign: 'center',
+    marginBottom: 40,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#D1FAE5',
+    marginBottom: 20,
+    height: 56,
+    paddingHorizontal: 16,
+  },
+  icon: {
+    fontSize: 20,
+    marginRight: 10,
+    color: '#9CA3AF',
   },
   input: {
-    width: '100%',
-    height: sh(50),
-    backgroundColor: COLORS.inputBg,
-    borderRadius: sw(35),
-    borderWidth: 1,
-    borderColor: COLORS.inputBorder,
-    paddingHorizontal: sw(20),
-    fontSize: mod(14),
-    color: '#000',
+    flex: 1,
+    fontSize: 16,
+    color: '#374151',
+    height: '100%',
   },
-  
-  // Action Button
-  loginBtn: {
-    position: 'absolute',
-    width: sw(297),
-    height: sh(50),
-    left: sw(11.5),
-    bottom: sh(60),
-    backgroundColor: '#242928',
-    borderRadius: sw(35),
+  submitBtnWrapper: {
+    width: '100%',
+    height: 56,
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginTop: 10,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  btnGradient: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  loginBtnText: {
+  submitBtnText: {
     color: COLORS.white,
-    fontSize: mod(16),
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
-  signupLinkContainer: {
-    position: 'absolute',
-    width: '100%',
-    bottom: sh(20),
+  switchLink: {
     flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center',
+    marginTop: 24,
   },
-  signupLinkText1: { color: 'rgba(255, 255, 255, 0.60)', fontSize: mod(14), fontWeight: '500' },
-  signupLinkText2: { color: COLORS.white, fontSize: mod(14), fontWeight: '700' },
-
-  // Footer Decor
-  footerBigCircle: {
-    position: 'absolute',
-    width: sw(768),
-    height: sw(768),
-    left: sw(-177),
-    top: sh(691),
-    backgroundColor: '#49514E',
-    borderRadius: 9999,
-    borderWidth: 1,
-    borderColor: '#BAC8C3',
-    zIndex: 5,
+  switchText1: {
+    color: COLORS.textSub,
+    fontSize: 15,
   },
-  footerMidCircle: {
-    position: 'absolute',
-    width: sw(223),
-    height: sw(223),
-    left: sw(95.5),
-    top: sh(818),
-    backgroundColor: COLORS.white,
-    borderRadius: 9999,
-    borderWidth: 3,
-    borderColor: '#7A8A84',
-    borderStyle: 'dotted',
-    zIndex: 6,
-  },
-  footerInnerCircle: {
-    position: 'absolute',
-    width: sw(181),
-    height: sw(181),
-    left: sw(116.5),
-    top: sh(835),
-    backgroundColor: COLORS.white,
-    borderRadius: 9999,
-    borderWidth: 8,
-    borderColor: '#49514E',
-    zIndex: 7,
+  switchText2: {
+    color: COLORS.gold,
+    fontSize: 15,
+    fontWeight: 'bold',
   },
 });
 

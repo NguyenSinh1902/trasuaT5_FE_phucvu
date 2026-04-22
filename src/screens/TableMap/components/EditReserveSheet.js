@@ -11,8 +11,9 @@ const EditReserveSheet = ({ table, onClose }) => {
 
   return (
     <Modal visible={!!table} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.sheetBackdrop} onPress={onClose} />
-      <View style={styles.sheetContainer}>
+      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <Pressable style={styles.sheetBackdrop} onPress={onClose} />
+        <View style={[styles.sheetContainer, { flexShrink: 1 }]}>
         <View style={styles.sheetHandle} />
 
         {/* Header */}
@@ -77,6 +78,7 @@ const EditReserveSheet = ({ table, onClose }) => {
             <Text style={[styles.confirmBtnText, { color: '#1A1A1A' }]}>Xác nhận đặt bàn</Text>
           </Pressable>
         </LinearGradient>
+        </View>
       </View>
     </Modal>
   );

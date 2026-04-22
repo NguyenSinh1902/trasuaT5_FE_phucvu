@@ -9,8 +9,9 @@ const UpdateGuestSheet = ({ table, onClose }) => {
 
   return (
     <Modal visible={!!table} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.sheetBackdrop} onPress={onClose} />
-      <View style={styles.sheetContainer}>
+      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <Pressable style={styles.sheetBackdrop} onPress={onClose} />
+        <View style={[styles.sheetContainer, { flexShrink: 1 }]}>
         <View style={styles.sheetHandle} />
 
         {/* Header */}
@@ -40,6 +41,7 @@ const UpdateGuestSheet = ({ table, onClose }) => {
             <Text style={styles.confirmBtnText}>Cập nhật</Text>
           </Pressable>
         </LinearGradient>
+        </View>
       </View>
     </Modal>
   );

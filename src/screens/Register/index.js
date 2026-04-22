@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, TextInput, StatusBar } from 'react-native';
+import { View, Text, Pressable, TextInput, StatusBar, ScrollView, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import ImageCarousel from '../../components/ImageCarousel';
 import styles from './Register.styles';
 
 const Register = ({ onNavigate }) => {
@@ -10,107 +11,111 @@ const Register = ({ onNavigate }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : null}>
+      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
-      {/* Linear Gradient Background */}
-      <LinearGradient 
-        colors={['#242928', '#49514E', '#5B605E', '#7A8A84', '#BAC8C3']}
-        locations={[0.31, 0.45, 0.59, 0.78, 0.93]}
-        style={styles.backgroundGradient}
-      />
-
-      {/* Text Header */}
-      <Text style={styles.titleText}>MatchTea</Text>
-      <Text style={styles.sloganText}>Fresh drinks, happy moments!</Text>
-
-      {/* Glassmorphism Card */}
-      <View style={styles.cardContainer}>
-        
-        {/* Toggle Switch */}
-        <View style={styles.toggleContainer}>
-          <View style={styles.toggleActiveBackground} />
-          <Pressable style={styles.toggleBtn} onPress={() => onNavigate && onNavigate('Login')}>
-            <Text style={styles.toggleTextInactive}>Đăng nhập</Text>
-          </Pressable>
-          <Pressable style={styles.toggleBtn}>
-            <Text style={styles.toggleTextActive}>Đăng ký</Text>
-          </Pressable>
+      {/* Brand Side (Left on Tablet) */}
+      <View style={styles.brandSide}>
+        <Image 
+          source={{ uri: 'https://images.unsplash.com/photo-1544424472-a1f9a2fbaf02?q=80&w=2670&auto=format&fit=crop' }} 
+          style={styles.bgImage}
+          resizeMode="cover"
+          blurRadius={32}
+        />
+        <View style={styles.blurOverlay} />
+        <View style={styles.blurOverlay} />
+        <View style={styles.brandTitleWrap}>
+          <View style={styles.logoRow}>
+            <Text style={styles.logoIcon}>🍵</Text>
+            <Text style={styles.brandTitle}>MatchTea</Text>
+          </View>
+          <Text style={styles.brandSubtitle}>APP NHÂN VIÊN PHỤC VỤ</Text>
         </View>
-
-        {/* Input Form using Flexbox for even spacing */}
-        <View style={styles.formContainer}>
-          <View style={styles.inputWrapper}>
-            <Text style={styles.labelText}>Họ & tên</Text>
-            <TextInput 
-              style={styles.input} 
-              placeholder="Nhập họ & tên..."
-              placeholderTextColor="#999"
-              value={name}
-              onChangeText={setName}
-            />
-          </View>
-
-          <View style={styles.inputWrapper}>
-            <Text style={styles.labelText}>Email</Text>
-            <TextInput 
-              style={styles.input} 
-              placeholder="Nhập email..."
-              placeholderTextColor="#999"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
-
-          <View style={styles.inputWrapper}>
-            <Text style={styles.labelText}>Mật Khẩu</Text>
-            <TextInput 
-              style={styles.input} 
-              placeholder="Nhập mật khẩu..."
-              placeholderTextColor="#999"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
-          </View>
-
-          <View style={styles.inputWrapper}>
-            <Text style={styles.labelText}>Xác nhận Mật Khẩu</Text>
-            <TextInput 
-              style={styles.input} 
-              placeholder="Nhập lại mật khẩu..."
-              placeholderTextColor="#999"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-            />
-          </View>
-        </View>
-
-        {/* Action Button */}
-        <Pressable 
-          style={({ pressed }) => [styles.loginBtn, pressed && { opacity: 0.8 }]}
-          onPress={() => console.log('Register pressed')}
-        >
-          <Text style={styles.loginBtnText}>Đăng ký</Text>
-        </Pressable>
-
-        {/* Note / Link */}
-        <View style={styles.signupLinkContainer}>
-          <Text style={styles.signupLinkText1}>Đã có tài khoản? </Text>
-          <Pressable onPress={() => onNavigate && onNavigate('Login')}>
-            <Text style={styles.signupLinkText2}>Đăng nhập</Text>
-          </Pressable>
-        </View>
+        <ImageCarousel />
       </View>
 
-      {/* Footer Giant Circles */}
-      <View style={styles.footerBigCircle} />
-      <View style={styles.footerMidCircle} />
-      <View style={styles.footerInnerCircle} />
-    </View>
+      {/* Content Form Side (Right on Tablet) */}
+      <View style={styles.formSide}>
+        <View style={styles.cornerBlob} pointerEvents="none" />
+        <View style={styles.cornerBlob2} pointerEvents="none" />
+        
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <View style={styles.formWrapper}>
+            <Text style={styles.headerText}>Tạo Tài Khoản</Text>
+            <Text style={styles.subHeaderText}>Đăng ký thông minh - Nâng tầm dịch vụ</Text>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.icon}>🏷️</Text>
+              <TextInput 
+                style={styles.input} 
+                placeholder="Họ và tên" 
+                placeholderTextColor="#9CA3AF"
+                value={name}
+                onChangeText={setName}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.icon}>✉️</Text>
+              <TextInput 
+                style={styles.input} 
+                placeholder="Email của bạn" 
+                placeholderTextColor="#9CA3AF"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.icon}>🔒</Text>
+              <TextInput 
+                style={styles.input} 
+                placeholder="Mật khẩu" 
+                secureTextEntry 
+                placeholderTextColor="#9CA3AF"
+                value={password}
+                onChangeText={setPassword}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.icon}>🔑</Text>
+              <TextInput 
+                style={styles.input} 
+                placeholder="Xác nhận mật khẩu" 
+                secureTextEntry 
+                placeholderTextColor="#9CA3AF"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+              />
+            </View>
+
+            <Pressable 
+              style={styles.submitBtnWrapper} 
+              onPress={() => console.log('Register pressed')}
+            >
+              <LinearGradient 
+                colors={['#2D5A27', '#059669']} 
+                style={styles.btnGradient} 
+                start={{x:0, y:0}} 
+                end={{x:1, y:0}}
+              >
+                <Text style={styles.submitBtnText}>Đăng ký ngay</Text>
+              </LinearGradient>
+            </Pressable>
+
+            <View style={styles.switchLink}>
+              <Text style={styles.switchText1}>Đã có tài khoản? </Text>
+              <Pressable onPress={() => onNavigate && onNavigate('Login')}>
+                <Text style={styles.switchText2}>Đăng nhập thôi</Text>
+              </Pressable>
+            </View>
+          </View>
+        </ScrollView>
+      </View>
+    </KeyboardAvoidingView>
   );
 };
 

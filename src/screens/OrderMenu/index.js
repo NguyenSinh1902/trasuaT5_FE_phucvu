@@ -1,105 +1,302 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, ScrollView, Pressable, TextInput, StatusBar, Image, FlatList, ActivityIndicator
+  View, Text, ScrollView, Pressable, TextInput, StatusBar, Image, ActivityIndicator, useWindowDimensions, StyleSheet, Animated, PanResponder, LayoutAnimation, UIManager, Platform
 } from 'react-native';
+
+// LayoutAnimation is natively supported on New Architecture (RN 0.84+)
 import LinearGradient from 'react-native-linear-gradient';
-import styles from './OrderMenu.styles';
 
 import categoryApi from '../../api/categoryApi';
 import productApi from '../../api/productApi';
+import orderApi from '../../api/orderApi';
+import ProductDetail from '../ProductDetail';
 
-// ===================== PRODUCT CARD =====================
-const ProductCard = ({ item, onNavigate, table, isTakeaway, invoiceId, reservation }) => {
-  // Get the base price from the first variant
-  const baseVariant = item.danhSachBienThe?.[0];
-  const price = baseVariant ? new Intl.NumberFormat('vi-VN').format(baseVariant.giaBan) + '₫' : '---₫';
-  const discount = baseVariant?.phanTramGiamGia > 0 ? `-${baseVariant.phanTramGiamGia}%` : null;
-  const imageUri = item.duongDanAnh || 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400';
+const EMOJIS = ['🧋', '🍵', '☕', '🎉', '🥤', '🍰'];
+
+const ProductCard = ({ item, onNavigate, table, isTakeaway, invoiceId, reservation, selected = false }) => {
+  // Find variant with highest discount
+  const maxDiscountVariant = item.danhSachBienThe?.reduce((best, cur) => {
+    return (cur.phanTramGiamGia || 0) > (best.phanTramGiamGia || 0) ? cur : best;
+  }, item.danhSachBienThe?.[0] || {});
+  const hasDiscount = (maxDiscountVariant?.phanTramGiamGia || 0) > 0;
+
+  // Final price after discount
+  const finalPrice = maxDiscountVariant?.giaBan
+    ? new Intl.NumberFormat('vi-VN').format(
+      Math.round(maxDiscountVariant.giaBan * (1 - (maxDiscountVariant.phanTramGiamGia || 0) / 100))
+    ) + '₫'
+    : '---₫';
+
+  // Original price (shown only when discount exists)
+  const originalPrice = hasDiscount && maxDiscountVariant?.giaBan
+    ? new Intl.NumberFormat('vi-VN').format(maxDiscountVariant.giaBan) + '₫'
+    : null;
+
+  const isValidUrl = item.duongDanAnh && item.duongDanAnh !== 'null' && String(item.duongDanAnh).trim() !== '' && String(item.duongDanAnh).startsWith('http');
+  const imageUri = isValidUrl ? item.duongDanAnh : 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400';
 
   const navigateToDetail = () => {
-    onNavigate && onNavigate('ProductDetail', { 
-      product: item, 
-      table, 
-      isTakeaway, 
-      invoiceId,
-      reservation
-    });
+    const params = { product: item, table, isTakeaway, invoiceId, reservation, existingItem: null };
+    onNavigate && onNavigate('ProductDetail', params);
   };
 
+  const isSelected = selected;
+  const gradientColors = isSelected
+    ? ['#8BA367', '#15803D']
+    : ['#FFFFFF', '#F1F8E9'];
+
   return (
-    <View style={styles.productCard}>
-      <Pressable
-        onPress={navigateToDetail}
-        style={styles.productImageWrap}>
-        <LinearGradient
-          colors={['#000', 'rgba(17,16,16,0.99)', '#CFCFCF']}
-          start={{ x: 0.15, y: 0 }} end={{ x: 1, y: 1 }}
-          style={styles.productImageGradient}>
-          <Image source={{ uri: imageUri }} style={styles.productImage} resizeMode="cover" />
-        </LinearGradient>
-        {discount && (
-          <LinearGradient colors={['#CACACA', '#113FF8']} start={{ x: 1, y: 0 }} end={{ x: 0, y: 0 }} style={styles.productBadge}>
-            <Text style={styles.productBadgeText}>{discount}</Text>
-          </LinearGradient>
-        )}
-        <Pressable style={styles.addBtn} onPress={navigateToDetail}>
-          <Text style={styles.addBtnText}>+</Text>
-        </Pressable>
-      </Pressable>
-      <Text style={styles.productName} numberOfLines={2}>{item.tenSanPham}</Text>
-      <Text style={styles.productPrice}>{price}</Text>
-    </View>
+    <Pressable onPress={navigateToDetail}>
+      <LinearGradient
+        colors={gradientColors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={isSelected ? s.cardGradient : s.productCard}
+      >
+        {/* Image */}
+        <View style={s.productImageWrap}>
+          <Image source={{ uri: imageUri }} style={s.productImage} resizeMode="cover" />
+          {hasDiscount && (
+            <View style={s.discountTag}>
+              <Text style={s.discountTagText}>-{maxDiscountVariant.phanTramGiamGia}%</Text>
+            </View>
+          )}
+        </View>
+        {/* Info */}
+        <View style={s.productInfo}>
+          <View>
+            <Text style={s.productName} numberOfLines={2}>{item.tenSanPham}</Text>
+            <Text style={s.productSubtitle} numberOfLines={1}>{item.moTa || 'Hương vị trà sữa truyền thống thơm béo...'}</Text>
+          </View>
+          <View style={s.productPriceRow}>
+            <View style={s.priceColumn}>
+              <Text style={s.productPrice}>{finalPrice}</Text>
+              {hasDiscount && originalPrice && (
+                <Text style={s.productOriginalPrice}>{originalPrice}</Text>
+              )}
+            </View>
+            {/* Smaller + button */}
+            <Pressable onPress={navigateToDetail} style={s.addButtonWrapper}>
+              <LinearGradient
+                colors={['#8BA367', '#15803D']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={s.addButton}
+              >
+                <Text style={s.addButtonText}>+</Text>
+              </LinearGradient>
+            </Pressable>
+          </View>
+        </View>
+      </LinearGradient>
+    </Pressable>
   );
 };
 
-// ===================== PROMO CARD =====================
-const PromoCard = ({ gradient, badge, title, subtitle, btnText, btnColor }) => (
-  <LinearGradient colors={gradient} style={styles.promoCard}>
-    <View style={styles.promoBadge}><Text style={styles.promoBadgeText}>{badge}</Text></View>
-    <Text style={styles.promoTitle}>{title}</Text>
-    <Text style={styles.promoSubtitle}>{subtitle}</Text>
-    <Pressable style={[styles.promoCta, { backgroundColor: btnColor }]}>
-      <Text style={[styles.promoCtaText, { color: gradient[0].includes('FE9') ? '#EC003F' : '#9810FA' }]}>{btnText}</Text>
-    </Pressable>
-  </LinearGradient>
-);
+const CartItem = React.memo(({ item, index, onUpdateQty, onRemove, onEdit }) => {
+  const [swipeAnim] = useState(new Animated.Value(0));
+  const [opacityAnim] = useState(new Animated.Value(1));
+  const [isDeleting, setIsDeleting] = useState(false);
+  const isEven = index % 2 === 0;
 
-// ===================== MAIN SCREEN =====================
-const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, reservation, cartCount }) => {
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dx) > 5,
+    onPanResponderMove: (_, gestureState) => {
+      if (gestureState.dx < 0 && gestureState.dx > -150) {
+        swipeAnim.setValue(gestureState.dx);
+      }
+    },
+    onPanResponderRelease: (_, gestureState) => {
+      if (gestureState.dx < -50) {
+        Animated.spring(swipeAnim, { toValue: -80, useNativeDriver: true, tension: 40, friction: 5 }).start();
+      } else {
+        Animated.spring(swipeAnim, { toValue: 0, useNativeDriver: true, tension: 40, friction: 5 }).start();
+      }
+    },
+  });
+
+  const deleteOpacity = swipeAnim.interpolate({
+    inputRange: [-60, -30, 0],
+    outputRange: [1, 0, 0],
+    extrapolate: 'clamp',
+  });
+
+  const deleteScale = swipeAnim.interpolate({
+    inputRange: [-100, -80, -40, 0],
+    outputRange: [1.2, 1, 0.5, 0],
+    extrapolate: 'clamp',
+  });
+
+  const handleDelete = () => {
+    Animated.parallel([
+      Animated.timing(swipeAnim, { toValue: -600, duration: 150, useNativeDriver: true }),
+      Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true })
+    ]).start(() => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setIsDeleting(true);
+      setTimeout(() => onRemove(item.id), 50);
+    });
+  };
+
+  if (isDeleting) return null;
+
+  return (
+    <Animated.View style={[s.cartItemWrap, { opacity: opacityAnim }]}>
+      <Animated.View style={[s.cartItemDeleteBg, { opacity: deleteOpacity }]}>
+        <Pressable style={s.cartItemDeleteBtn} onPress={handleDelete}>
+          <Animated.View style={{ transform: [{ scale: deleteScale }], alignItems: 'center' }}>
+            <Text style={{ fontSize: 22, color: 'white' }}>🗑️</Text>
+            <Text style={{ fontSize: 10, color: 'white', fontWeight: 'bold', marginTop: 4 }}>Xóa</Text>
+          </Animated.View>
+        </Pressable>
+      </Animated.View>
+      <Animated.View {...panResponder.panHandlers} style={{ transform: [{ translateX: swipeAnim }] }}>
+        <Pressable
+          style={({ pressed }) => [
+            s.cartItemContainer,
+            { backgroundColor: pressed ? '#D1FAE5' : (isEven ? '#FFFFFF' : '#F1F8E9') }
+          ]}
+          onPress={() => onEdit(item)}
+        >
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-start' }}>
+              <Text style={{ fontWeight: '800', color: '#1E293B', fontSize: 16, flexShrink: 1, lineHeight: 22, marginRight: 8 }} numberOfLines={2}>
+                {item.product?.tenSanPham || item.tenSanPham}
+              </Text>
+              <View style={{ padding: 4, backgroundColor: '#FEF3C7', borderRadius: 8 }}>
+                <Text style={{ fontSize: 14 }}>✏️</Text>
+              </View>
+            </View>
+            <Text style={{ fontWeight: '900', color: '#059669', fontSize: 16, marginLeft: 12 }}>
+              {(item.price * item.quantity).toLocaleString()}đ
+            </Text>
+          </View>
+
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <Text style={{ fontSize: 13, color: '#64748B', flex: 1, marginRight: 16, lineHeight: 18 }} numberOfLines={2}>
+              {item.ice || 'Kh. đá'}, {item.sugar || 'Kh. đường'}
+              {item.toppings?.length > 0 && `\n+${item.toppings.length} Tops`}
+            </Text>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 12, padding: 4, borderWidth: 1, borderColor: '#E2E8F0' }}>
+              <Pressable hitSlop={10} style={s.qtyCartBtn} onPress={(e) => { e.stopPropagation(); onUpdateQty && onUpdateQty(item.id, -1); }}>
+                <Text style={{ color: '#475569', fontWeight: 'bold', fontSize: 16 }}>−</Text>
+              </Pressable>
+              <Text style={{ color: '#059669', fontSize: 18, fontWeight: '900', width: 34, textAlign: 'center' }}>{item.quantity}</Text>
+              <Pressable hitSlop={10} style={s.qtyCartBtnAdd} onPress={(e) => { e.stopPropagation(); onUpdateQty && onUpdateQty(item.id, 1); }}>
+                <Text style={{ color: '#059669', fontWeight: 'bold', fontSize: 16 }}>+</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Pressable>
+      </Animated.View>
+    </Animated.View>
+  );
+});
+
+const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, reservation, cartCount, cart, onUpdateQty, onRemove, onClear, onAddToCart }) => {
   const [query, setQuery] = useState('');
-  const [cart, setCart] = useState([]);
   const [activeCat, setActiveCat] = useState('all');
-  const [categories, setCategories] = useState([{ idDanhMuc: 'all', tenDanhMuc: 'Tất Cả', emoji: '📋' }]);
+  const [categories, setCategories] = useState([{ idDanhMuc: 'all', tenDanhMuc: 'Khám Phá', emoji: '🌟' }]);
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  React.useEffect(() => {
+  // Right pane state using locally provided cart
+  const [submitting, setSubmitting] = useState(false);
+  const [tabletPopupData, setTabletPopupData] = useState(null);
+  const items = cart || [];
+  const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (items.length > 0) {
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.05, duration: 150, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 150, useNativeDriver: true })
+      ]).start();
+    }
+  }, [items.length, pulseAnim]);
+
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 700;
+
+  useEffect(() => {
     fetchInitialData();
   }, []);
+
+  const handleOrder = async () => {
+    import('react-native').then(({ Alert }) => {
+      if (items.length === 0) {
+        Alert.alert('Giỏ hàng rỗng', 'Vui lòng chọn món trước khi đặt.');
+        return;
+      }
+
+      setSubmitting(true);
+      const submitOrder = async () => {
+        try {
+          const idPhieuDat = reservation || table?.reservation?.idPhieuDat || table?.idPhieuDat || table?.idPhieuDatTemp;
+          const loaiDonHang = isTakeaway ? "MANG_VE" : "TAI_BAN";
+
+          if (!isTakeaway && !idPhieuDat) {
+            Alert.alert('Lỗi', `Không tìm thấy ID Phiếu Đặt Bàn cho bàn này. Vui lòng thử mở lại bàn.`);
+            setSubmitting(false);
+            return;
+          }
+
+          const payload = {
+            request: { idNhanVien: 3, idPhieuDat: idPhieuDat || null, loaiDonHang, idKhachHang: null, thueSuat: 0.08 },
+            chiTiets: items.map(item => ({
+              idBienThe: item.variant.idBienThe,
+              soLuong: item.quantity,
+              tuyChonJson: JSON.stringify({ duong: item.sugar, da: item.ice, luuY: item.note }),
+              danhSachIdTopping: item.toppings.map(t => t.idBienThe)
+            }))
+          };
+
+          if (invoiceId) {
+            await orderApi.addItemsToInvoice(invoiceId, payload.chiTiets);
+          } else if (idPhieuDat) {
+            const allInvoicesRes = await orderApi.getAll();
+            const allInvoices = Array.isArray(allInvoicesRes) ? allInvoicesRes : (allInvoicesRes.data || []);
+            const activeInvoice = allInvoices.find(inv => inv.idPhieuDat === idPhieuDat && inv.trangThai !== 'DA_THANH_TOAN' && inv.trangThai !== 'DA_HUY');
+            if (activeInvoice) await orderApi.addItemsToInvoice(activeInvoice.idHoaDon, payload.chiTiets);
+            else await orderApi.createOrder(payload);
+          } else {
+            await orderApi.createOrder(payload);
+          }
+
+          if (onClear) onClear();
+          Alert.alert('Thành công', 'Đã lưu đơn hàng thành công!', [{ text: 'OK', onPress: () => onNavigate('TableMap') }]);
+        } catch (err) {
+          console.error(err);
+          Alert.alert('Lỗi', 'Có lỗi xảy ra khi xử lý hóa đơn.');
+        } finally {
+          setSubmitting(false);
+        }
+      }
+      submitOrder();
+    });
+  };
 
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [catRes, homeRes] = await Promise.all([
-        categoryApi.getAll(),
-        productApi.getHome()
-      ]);
-
+      const [catRes, homeRes] = await Promise.all([categoryApi.getAll(), productApi.getHome()]);
       const catData = Array.isArray(catRes) ? catRes : (catRes.data || []);
-      const emojis = ['🧋', '🍵', '☕', '🎉', '🥤', '🍰'];
       const formattedCats = [
-        { idDanhMuc: 'all', tenDanhMuc: 'Tất Cả', emoji: '📋' },
-        ...catData.map((c, i) => ({ ...c, emoji: emojis[i % emojis.length] }))
+        { idDanhMuc: 'all', tenDanhMuc: 'Khám Phá', emoji: '🌟' },
+        ...catData.map((c, i) => ({ ...c, emoji: EMOJIS[i % EMOJIS.length] }))
       ];
       setCategories(formattedCats);
 
       const homeData = homeRes || {};
-      const initialSections = [
+      setSections([
         { id: 'hot', title: 'Sản Phẩm Hot 🔥', products: homeData.sanPhamHot || [] },
         { id: 'promo', title: 'Khuyến Mãi Khủng 🏷️', products: homeData.sanPhamGiamGia || [] },
         { id: 'new', title: 'Sản Phẩm Mới ✨', products: homeData.sanPhamMoi || [] },
-      ];
-      setSections(initialSections);
+      ]);
     } catch (err) {
       console.error('Failed to fetch menu data:', err);
     } finally {
@@ -109,17 +306,13 @@ const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, reservation, cart
 
   const handleCategoryPress = async (catId) => {
     setActiveCat(catId);
-    if (catId === 'all') {
-      fetchInitialData();
-      return;
-    }
+    if (catId === 'all') { fetchInitialData(); return; }
 
     setLoading(true);
     try {
       const res = await productApi.getByCategory(catId);
       const catName = categories.find(c => c.idDanhMuc === catId)?.tenDanhMuc || '';
-      const products = Array.isArray(res) ? res : (res.data || []);
-      setSections([{ id: catId, title: catName, products }]);
+      setSections([{ id: catId, title: catName, products: Array.isArray(res) ? res : (res.data || []) }]);
     } catch (err) {
       console.error('Failed to fetch category products:', err);
     } finally {
@@ -129,107 +322,309 @@ const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, reservation, cart
 
   const filteredSections = query.trim() === ''
     ? sections
-    : sections.map(s => ({
-        ...s,
-        products: s.products.filter(p => p.tenSanPham.toLowerCase().includes(query.toLowerCase()))
-      })).filter(s => s.products.length > 0);
+    : sections.map(s => ({ ...s, products: s.products.filter(p => p.tenSanPham.toLowerCase().includes(query.toLowerCase())) }))
+      .filter(s => s.products.length > 0);
 
-  return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-      <LinearGradient colors={['#1A1A1A', '#0F1A0F']} style={styles.bg} />
+  const renderSidebar = () => (
+    <View style={s.sidebar}>
+      <Pressable
+        style={s.sidebarBackBtn}
+        onPress={() => onNavigate && onNavigate('TableMap')}
+      >
+        <Text style={{ fontSize: 44, color: '#475569', fontWeight: '300', marginTop: -6 }}>‹</Text>
+      </Pressable>
 
-      {/* ===== HEADER ===== */}
-      <View style={styles.header}>
-        <Pressable style={styles.backBtn} onPress={() => onNavigate && onNavigate('TableMap')}>
-          <Text style={styles.backBtnText}>←</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>{isTakeaway ? 'MANG VỀ' : (table?.name?.toUpperCase() ?? 'BÀN')}</Text>
-        <Pressable style={styles.cartBtn} onPress={() => onNavigate && onNavigate('OrderSummary', { table, isTakeaway, invoiceId, reservation })}>
-          <Text style={styles.cartBtnText}>🛒</Text>
-          {cartCount > 0 && (
-            <View style={styles.cartBadge}><Text style={styles.cartBadgeText}>{cartCount}</Text></View>
-          )}
-        </Pressable>
-      </View>
-
-      {/* ===== SEARCH ===== */}
-      <View style={styles.searchRow}>
-        <View style={styles.searchWrap}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Tìm kiếm..."
-            placeholderTextColor="#8BA367"
-            value={query}
-            onChangeText={setQuery}
-          />
-        </View>
-        <Pressable style={styles.searchBtn}>
-          <Text style={styles.searchBtnText}>🔍</Text>
-        </Pressable>
-      </View>
-
-      {/* ===== CATEGORIES ===== */}
-      <View style={styles.catRow}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 40 }} style={{ width: '100%' }}>
         {categories.map(c => {
           const isActive = activeCat === c.idDanhMuc;
+          const content = (
+            <>
+              <Text style={{ fontSize: 26, marginBottom: 6, opacity: isActive ? 1 : 0.4 }}>{c.emoji}</Text>
+              <Text style={[s.catSidebarText, isActive && s.catSidebarTextActive]} numberOfLines={2}>
+                {c.tenDanhMuc}
+              </Text>
+            </>
+          );
+
+          if (isActive) {
+            return (
+              <Pressable key={c.idDanhMuc} onPress={() => handleCategoryPress(c.idDanhMuc)}>
+                <LinearGradient
+                  colors={['#8BA367', '#15803D']} // 45 degree diagonal gradient matching checkout
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={s.catSidebarItem}
+                >
+                  {content}
+                </LinearGradient>
+              </Pressable>
+            );
+          }
+
           return (
-            <Pressable key={c.idDanhMuc} style={styles.catItem} onPress={() => handleCategoryPress(c.idDanhMuc)}>
-              <View style={[
-                styles.catCircle,
-                isActive && styles.catCircleActive,
-              ]}>
-                <Text style={[styles.catEmoji, isActive && styles.catEmojiActive]}>{c.emoji}</Text>
-              </View>
-              <Text style={[styles.catLabel, isActive && styles.catLabelActive]} numberOfLines={1}>{c.tenDanhMuc}</Text>
+            <Pressable key={c.idDanhMuc} onPress={() => handleCategoryPress(c.idDanhMuc)}
+              style={s.catSidebarItem}>
+              {content}
             </Pressable>
           );
         })}
-      </View>
-
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {loading && (
-          <ActivityIndicator size="large" color="#8BA367" style={{ marginTop: 50 }} />
-        )}
-        {/* ===== PROMO BANNER ===== */}
-        <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={styles.bannerScroll}>
-          <PromoCard
-            gradient={['#FE9A00', '#FF2056']}
-            badge="Khuyến mãi"
-            title="Mua 1 Tặng 1"
-            subtitle="Trà Đào Cam Sả (Size L)"
-            btnText="Thêm ngay"
-            btnColor="white"
-          />
-          <PromoCard
-            gradient={['#9810FA', '#4F39F6', '#2B7FFF']}
-            badge="HOT DEAL"
-            title="Giảm 50%"
-            subtitle="Cà Phê Sữa Đá & Bánh Mì"
-            btnText="Đặt hàng"
-            btnColor="white"
-          />
-        </ScrollView>
-
-        {/* ===== PRODUCT SECTIONS ===== */}
-        {!loading && filteredSections.map(section => (
-          <View key={section.id} style={styles.section}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
-            <FlatList
-              data={section.products}
-              keyExtractor={item => `${section.id}-${item.idSanPham}`}
-              renderItem={({ item }) => <ProductCard item={item} onNavigate={onNavigate} table={table} isTakeaway={isTakeaway} invoiceId={invoiceId} reservation={reservation} />}
-              numColumns={2}
-              scrollEnabled={false}
-              columnWrapperStyle={styles.productRow}
-            />
-          </View>
-        ))}
-        <View style={{ height: 40 }} />
       </ScrollView>
     </View>
   );
+
+  const handleEdit = (item) => {
+    if (!item.product) return;
+    const params = { product: item.product, table, isTakeaway, invoiceId, reservation, existingItem: item };
+    if (isTablet) setTabletPopupData(params);
+    else onNavigate('ProductDetail', params);
+  };
+
+  const handleCardNavigate = (screen, params) => {
+    if (isTablet && screen === 'ProductDetail') {
+      setTabletPopupData(params);
+    } else {
+      onNavigate(screen, params);
+    }
+  };
+
+  const renderCart = () => {
+    const hasItems = items.length > 0;
+    return (
+      <View style={s.cartSidebar}>
+        <Text style={s.cartTitle}>Giỏ Hàng {table?.tenBan || table?.name ? `(${table.tenBan || table.name})` : ''}</Text>
+        <Text style={s.cartSubtitle}>{isTakeaway ? 'Đơn mang về' : 'Chọn món hiện tại'} 📝</Text>
+
+        {hasItems ? (
+          <ScrollView style={{ flex: 1, marginTop: 12 }} showsVerticalScrollIndicator={false}>
+            {items.map((item, idx) => (
+              <CartItem key={item.id || idx} index={idx} item={item} onUpdateQty={onUpdateQty} onRemove={onRemove} onEdit={handleEdit} />
+            ))}
+          </ScrollView>
+        ) : (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Text style={{ fontSize: 60, marginBottom: 20, opacity: 0.5 }}>🛒</Text>
+            <Text style={{ color: '#94A3B8', fontWeight: '600', fontSize: 16 }}>Chưa có món nào chọn</Text>
+          </View>
+        )}
+
+        <View style={s.cartFooter}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
+            <Text style={{ fontSize: 18, color: '#64748B', fontWeight: '600' }}>Tạm tính:</Text>
+            <Text style={{ fontSize: 24, color: '#D97706', fontWeight: '900' }}>{subtotal.toLocaleString()}đ</Text>
+          </View>
+          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+            <Pressable
+              disabled={submitting}
+              onPress={handleOrder}
+              style={({ pressed }) => [
+                { opacity: (submitting || pressed) ? 0.8 : 1 }
+              ]}
+            >
+              <LinearGradient
+                colors={['#8BA367', '#15803D']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={s.checkoutBtn}
+              >
+                {submitting ? <ActivityIndicator color="#FFF" /> : <Text style={s.checkoutBtnText}>Gửi đơn - {items.length} món</Text>}
+              </LinearGradient>
+            </Pressable>
+          </Animated.View>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <View style={s.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+
+      {/* THREE PANE LAYOUT (Tablet) OR STACKED (Phone) */}
+      <View style={{ flex: 1, flexDirection: isTablet ? 'row' : 'column' }}>
+
+        {/* PANE 1: SIDEBAR */}
+        {isTablet && renderSidebar()}
+
+        {/* PANE 2: CENTER DASHBOARD */}
+        <View style={s.centerPane}>
+
+          <View style={s.header}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 28, fontWeight: '900', color: '#064E3B' }}>
+                {table?.tenBan || table?.name || 'Bàn 01'} 🪑
+              </Text>
+              <Text style={{ fontSize: 13, color: '#064E3B', fontWeight: '600', marginTop: 4, opacity: 0.7 }}>
+                {new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: 'numeric', month: 'numeric', year: 'numeric' }).format(new Date())}
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+              <View style={s.searchWrap}>
+                <Text style={{ fontSize: 18, color: '#064E3B', marginRight: 10 }}>🔍</Text>
+                <TextInput
+                  style={s.searchInput}
+                  placeholder="Tìm món ngon..."
+                  placeholderTextColor="#064E3B80"
+                  value={query} onChangeText={setQuery}
+                />
+              </View>
+              <Pressable style={s.filterBtn}>
+                <View style={{ gap: 4, alignItems: 'center' }}>
+                  <View style={{ width: 18, height: 1.5, backgroundColor: '#064E3B', borderRadius: 1 }} />
+                  <View style={{ width: 12, height: 1.5, backgroundColor: '#064E3B', borderRadius: 1 }} />
+                  <View style={{ width: 6, height: 1.5, backgroundColor: '#064E3B', borderRadius: 1 }} />
+                </View>
+              </Pressable>
+            </View>
+          </View>
+
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 24, paddingTop: 8 }}>
+
+            {/* BANNER PROMO */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 36 }}>
+              <LinearGradient colors={['#ECFCCB', '#D1FAE5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[s.bannerCard, { marginRight: 16 }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: '#047857', fontWeight: '900', fontSize: 13, marginBottom: 6, letterSpacing: 0.5 }}>KHUYẾN MÃI ĐẶC BIỆT</Text>
+                  <Text style={{ color: '#1E293B', fontWeight: '800', fontSize: 24, marginBottom: 6 }}>Mua 1 Tặng 1</Text>
+                  <Text style={{ color: '#475569', fontSize: 14 }}>Áp dụng cho Trà Nhài Đào (Size L)</Text>
+                </View>
+                <Text style={{ fontSize: 56, marginLeft: 20 }}>🍑</Text>
+              </LinearGradient>
+
+              <LinearGradient colors={['#FEF3C7', '#FEF08A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.bannerCard}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: '#B45309', fontWeight: '900', fontSize: 13, marginBottom: 6, letterSpacing: 0.5 }}>HOT DEAL TRƯA NAY</Text>
+                  <Text style={{ color: '#1E293B', fontWeight: '800', fontSize: 24, marginBottom: 6 }}>Giảm 15% Bill</Text>
+                  <Text style={{ color: '#475569', fontSize: 14 }}>Nhập mã: MATCHA15</Text>
+                </View>
+                <Text style={{ fontSize: 56, marginLeft: 20 }}>🍵</Text>
+              </LinearGradient>
+            </ScrollView>
+
+            {loading ? <ActivityIndicator size="large" color="#10B981" style={{ marginTop: 100 }} /> :
+              filteredSections.map(section => (
+                <View key={section.id} style={{ marginBottom: 40 }}>
+                  <Text style={s.sectionTitle}>{section.title}</Text>
+                  <View style={s.productGrid}>
+                    {section.products.map(item => (
+                      <View key={item.idSanPham} style={[s.productGridItem, { width: isTablet ? '23%' : '47%' }]}>
+                        <ProductCard item={item} onNavigate={handleCardNavigate} table={table} isTakeaway={isTakeaway} invoiceId={invoiceId} reservation={reservation} />
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ))
+            }
+          </ScrollView>
+        </View>
+
+        {/* PANE 3: CART */}
+        {isTablet ? renderCart() : (
+          <View style={{ position: 'absolute', bottom: 20, right: 20 }}>
+            <Pressable style={s.floatingCart} onPress={() => onNavigate && onNavigate('OrderSummary', { table, isTakeaway, invoiceId, reservation })}>
+              <Text style={{ fontSize: 24 }}>🛒</Text>
+              {(items.length > 0) && (
+                <View style={s.floatingCartBadge}>
+                  <Text style={{ color: '#FFF', fontSize: 12, fontWeight: 'bold' }}>{items.length}</Text>
+                </View>
+              )}
+            </Pressable>
+          </View>
+        )}
+
+      </View>
+
+      {/* INLINE PRODUCT DETAIL MODAL FOR TABLET */}
+      {isTablet && tabletPopupData && (
+        <View style={{ ...StyleSheet.absoluteFillObject, zIndex: 9999 }}>
+          <ProductDetail
+            {...tabletPopupData}
+            isTabletPopup={true}
+            onClosePopup={() => setTabletPopupData(null)}
+            onAddToCart={(item) => {
+              if (onAddToCart) onAddToCart(item);
+              setTabletPopupData(null);
+            }}
+          />
+        </View>
+      )}
+
+    </View>
+  );
 };
+
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  sidebar: { width: 110, backgroundColor: '#FFFFFF', borderRightWidth: 1, borderColor: '#F1F5F9', paddingTop: 24, alignItems: 'center' },
+  sidebarBackBtn: { width: 48, height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
+
+  catSidebarItem: { width: 84, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 20, alignSelf: 'center' },
+  catSidebarItemActive: {}, // controlled by gradient now
+
+  catSidebarText: { fontSize: 12, fontWeight: '600', color: '#94A3B8', textAlign: 'center', paddingHorizontal: 4 },
+  catSidebarTextActive: { color: '#FFFFFF', fontWeight: '800' },
+
+  centerPane: { flex: 1, backgroundColor: '#F5F7F8' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: '#F5F7F8',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#A5D6A780',
+    zIndex: 10,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  searchWrap: { width: 300, flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 100, paddingHorizontal: 20, height: 48, borderWidth: 1, borderColor: '#A5D6A7' },
+  searchInput: { flex: 1, color: '#064E3B', fontSize: 14, fontWeight: '600' },
+  filterBtn: { width: 48, height: 48, borderRadius: 100, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#A5D6A7' },
+
+  bannerCard: { flexDirection: 'row', alignItems: 'center', width: 380, borderRadius: 28, padding: 24 },
+
+  sectionTitle: { fontSize: 22, fontWeight: '900', color: '#1E293B', marginBottom: 20 },
+  productGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: '2%' },
+  productGridItem: { marginBottom: 20 },
+
+  // Card container (default) – glassmorphism style (Solid white to fix artifacts)
+  productCard: { borderRadius: 24, padding: 12, paddingBottom: 16, shadowColor: '#000', shadowOffset: { width: 2, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 6, borderWidth: 0.5, borderColor: '#E2E8F0', height: 310 },
+  // Gradient background for selected card (45° diagonal)
+  cardGradient: { borderRadius: 24, padding: 12, paddingBottom: 16, shadowColor: '#15803D', shadowOffset: { width: 2, height: 4 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 8, borderWidth: 1, borderColor: '#15803D', height: 310 },
+  productImageWrap: { width: '100%', aspectRatio: 1, borderRadius: 16, overflow: 'hidden', backgroundColor: 'transparent', marginBottom: 10 },
+  productImage: { width: '100%', height: '100%' },
+  // Discount tag displayed on top‑left of image when there is a discount
+  discountTag: { position: 'absolute', top: 12, left: 12, backgroundColor: '#E11D48', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  discountTagText: { color: '#FFF', fontSize: 11, fontWeight: '800' },
+  // Add button (gradient) wrapper – smaller size
+  addButtonWrapper: { width: 36, height: 36, borderRadius: 8, overflow: 'hidden' },
+  addButton: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  addButtonText: { color: '#FFF', fontSize: 20, fontWeight: 'bold' },
+  // Price column for price & original price
+  priceColumn: { flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center' },
+  productOriginalPrice: { fontSize: 13, color: '#9CA3AF', textDecorationLine: 'line-through', marginTop: 2 },
+
+  productInfo: { paddingHorizontal: 4, flex: 1, paddingTop: 2 },
+  productName: { fontSize: 17, fontWeight: '800', color: '#1E293B', marginBottom: 2, height: 44, lineHeight: 22 },
+  productSubtitle: { fontSize: 12, color: '#94A3B8', marginBottom: 2, height: 16 },
+  productPriceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingBottom: 2 },
+  productPrice: { fontSize: 18, fontWeight: '900', color: '#15803D' },
+
+  cartSidebar: { width: 340, backgroundColor: 'rgba(255, 255, 255, 0.95)', borderLeftWidth: 1, borderColor: '#E2E8F0', padding: 24, paddingTop: 40 },
+  cartTitle: { fontSize: 28, fontWeight: '900', color: '#1E293B', marginBottom: 4 },
+  cartSubtitle: { fontSize: 16, fontWeight: '700', color: '#059669', marginBottom: 16 },
+
+  cartItemWrap: { position: 'relative', marginBottom: 16, marginHorizontal: 2 },
+  cartItemDeleteBg: { position: 'absolute', top: 0, bottom: 0, right: 0, width: '100%', backgroundColor: '#E11D48', borderRadius: 16, justifyContent: 'center', alignItems: 'flex-end', paddingRight: 20 },
+  cartItemDeleteBtn: { padding: 12, alignItems: 'center' },
+  cartItemContainer: { padding: 16, borderRadius: 16, elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.02, shadowRadius: 4, borderWidth: 0.5, borderColor: '#D1FAE5' },
+
+  qtyCartBtn: { width: 28, height: 28, borderRadius: 8, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  qtyCartBtnAdd: { width: 28, height: 28, borderRadius: 8, backgroundColor: '#D1FAE5', alignItems: 'center', justifyContent: 'center' },
+  cartFooter: { marginTop: 'auto', paddingTop: 24, borderTopWidth: 1, borderTopColor: '#E2E8F0' },
+  checkoutBtn: { borderRadius: 16, padding: 20, alignItems: 'center', shadowColor: '#052e16', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
+  checkoutBtnText: { color: '#FFFFFF', fontSize: 18, fontWeight: '900' },
+
+  floatingCart: { width: 64, height: 64, backgroundColor: '#FFFFFF', borderRadius: 32, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 6 }
+});
 
 export default OrderMenu;

@@ -1,20 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, Pressable, ScrollView, ActivityIndicator, Alert, Dimensions, TextInput } from 'react-native';
+import { View, Text, Modal, Pressable, ScrollView, ActivityIndicator, Alert, TextInput, useWindowDimensions } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import styles from '../TableMap.styles';
 import orderApi from '../../../api/orderApi';
-import productApi from '../../../api/productApi';
-
-const { width, height } = Dimensions.get('window');
 
 const ICE_LEVELS = ['Không đá', 'Ít đá', 'Mặc định', 'Nhiều đá'];
 const SUGAR_LEVELS = ['0%', '50%', '70%', '100%'];
+
+const ActionButton = ({ title, icon, onPress, bgColor, gradient, textColor, borderColor, containerStyle, horizontal, shadowColor, disabled }) => (
+  <Pressable onPress={onPress} disabled={disabled} style={({ pressed }) => [{
+    flexDirection: horizontal ? 'row' : 'column', backgroundColor: bgColor || 'transparent', borderRadius: 16,
+    justifyContent: 'center', alignItems: 'center', borderWidth: borderColor ? 1.5 : 0, borderColor: borderColor || 'transparent',
+    opacity: disabled ? 0.6 : (pressed ? 0.8 : 1), transform: [{ scale: (pressed && !disabled) ? 0.96 : 1 }],
+    shadowColor: disabled ? 'transparent' : (shadowColor || bgColor || (gradient && gradient[1]) || '#000'),
+    shadowOffset: { width: 0, height: disabled ? 0 : 6 }, shadowOpacity: disabled ? 0 : (pressed || borderColor ? 0 : 0.3),
+    shadowRadius: 10, elevation: disabled ? 0 : (pressed ? 0 : 5),
+  }, containerStyle]}>
+    {gradient && <LinearGradient colors={gradient} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16 }} start={{x:0, y:0}} end={{x:1, y:1}} />}
+    {disabled && title.includes('Yêu cầu') ? <ActivityIndicator color={textColor} /> : (
+      <>
+        {icon && <Text style={{ fontSize: horizontal ? 24 : 32, marginRight: horizontal ? 12 : 0, marginBottom: horizontal ? 0 : 6, zIndex: 1 }}>{icon}</Text>}
+        <Text style={{ color: textColor, fontSize: 16, fontWeight: '800', letterSpacing: 0.5, zIndex: 1 }} adjustsFontSizeToFit numberOfLines={1}>{title}</Text>
+      </>
+    )}
+  </Pressable>
+);
 
 const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [invoice, setInvoice] = useState(null);
-  const [allToppings, setAllToppings] = useState([]);
 
   // Edit item state
   const [selectedItem, setSelectedItem] = useState(null);
@@ -22,7 +36,9 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
   const [selectedIce, setSelectedIce] = useState('Mặc định');
   const [selectedSugar, setSelectedSugar] = useState('50%');
   const [selectedNote, setSelectedNote] = useState('');
-  const [selectedToppings, setSelectedToppings] = useState([]);
+
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 700;
 
   useEffect(() => {
     if (table) fetchInvoice();
@@ -80,8 +96,6 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
     } catch (e) {
       setSelectedIce('Mặc định'); setSelectedSugar('50%'); setSelectedNote('');
     }
-    const currentTops = (item.danhSachTopping || []).map(t => t.idTopping || t.idBienTheTopping);
-    setSelectedToppings(currentTops.filter(id => id != null));
     setIsEditModalVisible(true);
   };
 
@@ -157,110 +171,155 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
   if (!table) return null;
 
   return (
-    <Modal visible={!!table} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.sheetBackdrop} onPress={onClose} />
-      <View style={[styles.sheetContainer, { height: '85%' }]}>
-        <View style={styles.sheetHandle} />
+    <Modal visible={!!table} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+      <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.65)', justifyContent: 'center', alignItems: 'center' }}>
+        <Pressable style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 }} onPress={onClose} />
+        
+        <View style={{ 
+          width: isTablet ? '65%' : '92%', 
+          backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+          borderRadius: 24, 
+          borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)',
+          padding: isTablet ? 36 : 24, paddingBottom: isTablet ? 32 : 24,
+          maxHeight: '90%',
+          shadowColor: '#10B981', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.15, shadowRadius: 40, elevation: 20 
+        }}>
+          {/* Gradient Glow Blobs */}
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', borderRadius: 24 }} pointerEvents="none">
+            <LinearGradient colors={['rgba(16, 185, 129, 0.12)', 'transparent']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', top: -100, left: -100, width: 350, height: 350, borderRadius: 175 }} />
+            <LinearGradient colors={['rgba(245, 158, 11, 0.1)', 'transparent']} start={{ x: 1, y: 1 }} end={{ x: 0, y: 0 }} style={{ position: 'absolute', bottom: -100, right: -100, width: 400, height: 400, borderRadius: 200 }} />
+          </View>
 
-        <View style={styles.sheetHeaderRow}>
-          <View>
-            <Text style={styles.sheetTitle}>Hóa Đơn {table.tenBan}</Text>
-            <Text style={styles.sheetSubtitle}>
-               {invoice?.trangThai === 'CHO_THANH_TOAN' ? '🔔 Chờ thanh toán' : 
+          <Pressable style={{ position: 'absolute', top: 16, right: 16, width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', zIndex: 10 }} onPress={onClose}>
+            <Text style={{ fontSize: 18, color: '#64748B', fontWeight: 'bold' }}>✕</Text>
+          </Pressable>
+
+          <View style={{ marginBottom: 20 }}>
+            <Text style={{ fontSize: isTablet ? 34 : 28, fontWeight: '900', color: '#1E293B', marginBottom: 4 }}>Hóa Đơn {table.tenBan}</Text>
+            <Text style={{ fontSize: isTablet ? 18 : 16, fontWeight: '700', color: invoice?.trangThai === 'CHO_THANH_TOAN' ? '#D97706' : '#059669' }}>
+               {invoice?.trangThai === 'CHO_THANH_TOAN' ? '🔔 Chờ thu ngân' : 
                 invoice?.trangThai === 'DA_THANH_TOAN' ? '✅ Đã thanh toán' : 
-                invoice?.trangThai === 'CHO_XAC_NHAN' ? '⏳ Chờ xác nhận' : '✅ Đang phục vụ'}
+                invoice?.trangThai === 'CHO_XAC_NHAN' ? '⏳ Chờ xác nhận' : '☕ Đang phục vụ'}
             </Text>
           </View>
-          <Pressable style={styles.sheetCloseBtn} onPress={onClose}><Text style={styles.sheetCloseBtnText}>✕</Text></Pressable>
-        </View>
 
-        {loading && !invoice ? <ActivityIndicator size="large" color="#8BA367" style={{ marginTop: 40 }} /> : invoice ? (
-          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, marginTop: 10 }}>
-            <View style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 16, marginBottom: 20 }}>
-              {invoice.danhSachChiTiet?.map((item, index) => (
-                <View key={item.idChiTiet || index} style={{ marginBottom: 16, borderBottomWidth: index === invoice.danhSachChiTiet.length-1?0:1, borderBottomColor: 'rgba(255,255,255,0.05)', paddingBottom: 16 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>{item.tenSanPham}</Text>
-                        <Pressable onPress={() => handleOpenEdit(item)} style={{ marginLeft: 8 }}><Text>✏️</Text></Pressable>
+          {loading && !invoice ? <ActivityIndicator size="large" color="#10B981" style={{ marginTop: 40 }} /> : invoice ? (
+            <ScrollView showsVerticalScrollIndicator={false} style={{ flexShrink: 1 }}>
+              <View style={{ backgroundColor: '#F8FAFC', borderRadius: 16, padding: 16, marginBottom: 24, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                {invoice.danhSachChiTiet?.map((item, index) => (
+                  <View key={item.idChiTiet || index} style={{ marginBottom: index === invoice.danhSachChiTiet.length - 1 ? 0 : 16, borderBottomWidth: index === invoice.danhSachChiTiet.length-1?0:1, borderBottomColor: '#F1F5F9', paddingBottom: index === invoice.danhSachChiTiet.length - 1 ? 0 : 16 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <View style={{ flex: 1, paddingRight: 12 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <Text style={{ color: '#1E293B', fontSize: 17, fontWeight: '700', marginRight: 8 }}>{item.tenSanPham}</Text>
+                          <Pressable onPress={() => handleOpenEdit(item)} style={{ padding: 4, backgroundColor: '#E2E8F0', borderRadius: 6 }}><Text style={{fontSize: 12}}>✏️ Sửa</Text></Pressable>
+                        </View>
+                        
+                        {(item.tuyChonJson) && (
+                           <Text style={{ color: '#64748B', fontSize: 13, marginTop: 4 }}>
+                             {JSON.parse(item.tuyChonJson || '{}').da || 'Mặc định'} đá - {JSON.parse(item.tuyChonJson || '{}').duong || '50%'} đường
+                             {JSON.parse(item.tuyChonJson || '{}').luuY ? ` • ${JSON.parse(item.tuyChonJson || '{}').luuY}` : ''}
+                           </Text>
+                        )}
+                        
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, backgroundColor: '#FFFFFF', alignSelf: 'flex-start', borderRadius: 8, padding: 4, shadowColor: '#000', shadowOffset:{width:0, height:1}, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 }}>
+                          <Pressable onPress={() => updateItemQuantity(item, -1)} style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#475569', fontWeight: 'bold' }}>−</Text></Pressable>
+                          <Text style={{ color: '#1E293B', fontSize: 16, fontWeight: '800', width: 40, textAlign: 'center' }}>{item.soLuong}</Text>
+                          <Pressable onPress={() => updateItemQuantity(item, 1)} style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: '#D1FAE5', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#059669', fontWeight: 'bold' }}>+</Text></Pressable>
+                          
+                          <Pressable onPress={() => handleDeleteItem(item)} style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center', marginLeft: 12 }}><Text style={{ color: '#DC2626', fontSize: 12 }}>🗑️</Text></Pressable>
+                        </View>
                       </View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
-                        <Pressable onPress={() => updateItemQuantity(item, -1)} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff' }}>-</Text></Pressable>
-                        <Text style={{ color: '#fff', marginHorizontal: 15 }}>{item.soLuong}</Text>
-                        <Pressable onPress={() => updateItemQuantity(item, 1)} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff' }}>+</Text></Pressable>
-                        <Pressable onPress={() => handleDeleteItem(item)} style={{ marginLeft: 20 }}><Text>🗑️</Text></Pressable>
+                      <View style={{ alignItems: 'flex-end' }}>
+                         <Text style={{ color: '#059669', fontSize: 16, fontWeight: '800' }}>{item.thanhTien?.toLocaleString()}đ</Text>
+                         <Text style={{ color: '#94A3B8', fontSize: 13, marginTop: 4 }}>{(item.thanhTien / item.soLuong)?.toLocaleString()}đ/1</Text>
                       </View>
                     </View>
-                    <Text style={{ color: '#8BA367', fontWeight: '700' }}>{item.thanhTien?.toLocaleString()}đ</Text>
                   </View>
-                </View>
-              ))}
-            </View>
+                ))}
+              </View>
 
-            <View style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 16 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}><Text style={{ color: '#aaa' }}>Tạm tính</Text><Text style={{ color: '#fff' }}>{invoice.tongTienHang?.toLocaleString()}đ</Text></View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}><Text style={{ color: '#aaa' }}>Thuế</Text><Text style={{ color: '#fff' }}>{invoice.tongTienThue?.toLocaleString()}đ</Text></View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}><Text style={{ color: '#fff', fontWeight: 'bold' }}>TỔNG CỘNG</Text><Text style={{ color: '#FFD700', fontSize: 20, fontWeight: 'bold' }}>{invoice.tongThanhToan?.toLocaleString()}đ</Text></View>
-              
+              {/* TỔNG KẾT HÓA ĐƠN */}
+              <View style={{ backgroundColor: '#F8FAFC', borderRadius: 16, padding: 20, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 24 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}><Text style={{ color: '#64748B', fontSize: 15 }}>Tạm tính</Text><Text style={{ color: '#1E293B', fontSize: 15, fontWeight: '600' }}>{invoice.tongTienHang?.toLocaleString()}đ</Text></View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}><Text style={{ color: '#64748B', fontSize: 15 }}>Thuế & Phí</Text><Text style={{ color: '#1E293B', fontSize: 15, fontWeight: '600' }}>{invoice.tongTienThue?.toLocaleString()}đ</Text></View>
+                
+                <View style={{ height: 1, backgroundColor: '#E2E8F0', marginBottom: 16, width: '100%' }} />
+
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ color: '#1E293B', fontWeight: '900', fontSize: 18 }}>TỔNG THANH TOÁN</Text>
+                    <Text style={{ color: '#D97706', fontSize: 24, fontWeight: '900' }}>{invoice.tongThanhToan?.toLocaleString()}đ</Text>
+                </View>
+              </View>
+
+              {/* ACTION FOOTER */}
               {invoice.trangThai !== 'DA_THANH_TOAN' && (
-                <View style={{ marginTop: 20, gap: 10 }}>
-                  <LinearGradient colors={['#8BA367', '#6B8E4E']} style={styles.confirmBtn}>
-                    <Pressable style={styles.confirmBtnInner} onPress={() => { onOpenMenu([table], table?.reservation?.idPhieuDat || table?.idPhieuDatTemp, false, invoice?.idHoaDon); onClose(); }}><Text style={styles.confirmBtnText}>➕ Thêm món</Text></Pressable>
-                  </LinearGradient>
-                  {invoice.trangThai !== 'CHO_THANH_TOAN' && (
-                    <LinearGradient colors={['#FFD700', '#FFA500']} style={styles.confirmBtn}>
-                      <Pressable style={styles.confirmBtnInner} onPress={handleRequestPayment}><Text style={[styles.confirmBtnText, { color: '#000' }]}>💳 Yêu cầu thanh toán</Text></Pressable>
-                    </LinearGradient>
-                  )}
+                <View style={{ flexDirection: 'row', gap: 16 }}>
+                   <ActionButton 
+                      title="➕ Gọi thêm món" bgColor="#F1F5F9" textColor="#475569" borderColor="#E2E8F0"
+                      horizontal containerStyle={{ flex: 1, height: 65 }} 
+                      onPress={() => { onOpenMenu([table], table?.reservation?.idPhieuDat || table?.idPhieuDatTemp, false, invoice?.idHoaDon); onClose(); }} 
+                   />
+                   {invoice.trangThai !== 'CHO_THANH_TOAN' && (
+                      <ActionButton 
+                         title="Yêu cầu thanh toán" icon="💳" gradient={['#FCD34D', '#F59E0B']} textColor="#78350F" shadowColor="#D97706"
+                         horizontal containerStyle={{ flex: 1, height: 65 }} 
+                         onPress={handleRequestPayment} disabled={loading}
+                      />
+                   )}
                 </View>
               )}
-            </View>
-          </ScrollView>
-        ) : (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, marginBottom: 20 }}>Bàn này chưa gọi món.</Text>
-            <LinearGradient colors={['#8BA367', '#6B8E4E']} style={[styles.confirmBtn, { width: '80%' }]}>
-              <Pressable style={styles.confirmBtnInner} onPress={() => { onOpenMenu([table], table?.reservation?.idPhieuDat || table?.idPhieuDatTemp, false, invoice?.idHoaDon); onClose(); }}>
-                <Text style={styles.confirmBtnText}>➕ Thêm món</Text>
-              </Pressable>
-            </LinearGradient>
-          </View>
-        )}
-
-        {/* Edit Modal */}
-        <Modal visible={isEditModalVisible} transparent animationType="fade">
-          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center' }}>
-            <View style={{ width: '90%', backgroundColor: '#1A1A1A', padding: 20, borderRadius: 20, borderWidth: 1, borderColor: '#333' }}>
-              <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold', marginBottom: 20 }}>Chỉnh sửa: {selectedItem?.tenSanPham}</Text>
-              
-              <Text style={{ color: '#aaa', marginBottom: 10 }}>Đá:</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
-                {ICE_LEVELS.map(level => (
-                  <Pressable key={level} onPress={() => setSelectedIce(level)} style={{ padding: 10, borderRadius: 10, backgroundColor: selectedIce===level?'#8BA367':'#333' }}><Text style={{ color: '#fff' }}>{level}</Text></Pressable>
-                ))}
-              </View>
-
-              <Text style={{ color: '#aaa', marginBottom: 10 }}>Đường:</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
-                {SUGAR_LEVELS.map(level => (
-                  <Pressable key={level} onPress={() => setSelectedSugar(level)} style={{ padding: 10, borderRadius: 10, backgroundColor: selectedSugar===level?'#8BA367':'#333' }}><Text style={{ color: '#fff' }}>{level}</Text></Pressable>
-                ))}
-              </View>
-
-              <TextInput 
-                style={{ backgroundColor: '#222', color: '#fff', padding: 15, borderRadius: 12, marginBottom: 20 }} 
-                placeholder="Ghi chú..." placeholderTextColor="#555" 
-                value={selectedNote} onChangeText={setSelectedNote}
+            </ScrollView>
+          ) : (
+            <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+              <Text style={{ color: '#94A3B8', fontSize: 18, marginBottom: 24, fontWeight: '600' }}>Chưa có món nào được gọi.</Text>
+              <ActionButton 
+                 title="Bắt đầu gọi món" icon="➕" gradient={['#34D399', '#059669']} textColor="#FFFFFF" shadowColor="#047857"
+                 horizontal containerStyle={{ width: '80%', height: 65 }} 
+                 onPress={() => { onOpenMenu([table], table?.reservation?.idPhieuDat || table?.idPhieuDatTemp, false, invoice?.idHoaDon); onClose(); }} 
               />
+            </View>
+          )}
 
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                <Pressable onPress={() => setIsEditModalVisible(false)} style={{ flex: 1, padding: 15, backgroundColor: '#444', borderRadius: 12, alignItems: 'center' }}><Text style={{ color: '#fff' }}>Hủy</Text></Pressable>
-                <Pressable onPress={handleSaveEdit} style={{ flex: 2, padding: 15, backgroundColor: '#8BA367', borderRadius: 12, alignItems: 'center' }}><Text style={{ color: '#fff', fontWeight: 'bold' }}>Lưu thay đổi</Text></Pressable>
+          {/* Edit Customization Modal */}
+          <Modal visible={isEditModalVisible} transparent animationType="fade">
+            <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.75)', justifyContent: 'center', alignItems: 'center' }}>
+              <View style={{ width: isTablet ? '45%' : '90%', backgroundColor: '#FFFFFF', padding: 24, borderRadius: 24, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 }}>
+                <Text style={{ color: '#1E293B', fontSize: 20, fontWeight: '800', marginBottom: 24 }}>Tùy chỉnh: {selectedItem?.tenSanPham}</Text>
+                
+                <Text style={{ color: '#475569', fontWeight: '700', marginBottom: 12 }}>Đá:</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
+                  {ICE_LEVELS.map(level => (
+                    <Pressable key={level} onPress={() => setSelectedIce(level)} style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, backgroundColor: selectedIce===level ? '#D1FAE5' : '#F1F5F9', borderWidth: 1, borderColor: selectedIce===level ? '#10B981' : '#E2E8F0' }}>
+                        <Text style={{ color: selectedIce===level ? '#047857' : '#64748B', fontWeight: '700' }}>{level}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                <Text style={{ color: '#475569', fontWeight: '700', marginBottom: 12 }}>Đường:</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
+                  {SUGAR_LEVELS.map(level => (
+                    <Pressable key={level} onPress={() => setSelectedSugar(level)} style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, backgroundColor: selectedSugar===level ? '#D1FAE5' : '#F1F5F9', borderWidth: 1, borderColor: selectedSugar===level ? '#10B981' : '#E2E8F0' }}>
+                        <Text style={{ color: selectedSugar===level ? '#047857' : '#64748B', fontWeight: '700' }}>{level}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                <TextInput 
+                  style={{ backgroundColor: '#F8FAFC', color: '#1E293B', padding: 16, borderRadius: 12, marginBottom: 24, borderWidth: 1, borderColor: '#E2E8F0', height: 80, textAlignVertical: 'top' }} 
+                  placeholder="Ghi chú (Ví dụ: Ít ngọt, không béo...)" placeholderTextColor="#94A3B8" multiline
+                  value={selectedNote} onChangeText={setSelectedNote}
+                />
+
+                <View style={{ flexDirection: 'row', gap: 16 }}>
+                  <ActionButton title="Hủy bỏ" bgColor="#F1F5F9" textColor="#475569" borderColor="#E2E8F0" containerStyle={{ flex: 1, height: 50 }} onPress={() => setIsEditModalVisible(false)} />
+                  <ActionButton title="Lưu lại" gradient={['#34D399', '#059669']} textColor="#FFFFFF" shadowColor="#047857" containerStyle={{ flex: 1, height: 50 }} onPress={handleSaveEdit} disabled={editing} />
+                </View>
               </View>
             </View>
-          </View>
-        </Modal>
+          </Modal>
+
+        </View>
       </View>
     </Modal>
   );
