@@ -40,11 +40,8 @@ axiosClient.interceptors.response.use(
       message = error.message || message;
     }
 
-    console.error('API Error Details:', {
-      status: error.response?.status,
-      message: message,
-      data: error.response?.data
-    });
+    // Log error for debugging but don't use console.error which might trigger UI overlays
+    console.log('API Error:', message);
 
     // Trả về một object lỗi chứa message để UI có thể hiển thị bằng Alert
     return Promise.reject({ ...error, message });

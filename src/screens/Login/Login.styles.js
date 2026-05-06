@@ -184,6 +184,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
   },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 13,
+    marginTop: -12,
+    marginBottom: 15,
+    paddingLeft: 4,
+    fontWeight: '500',
+  },
 });
 
 export default styles;

@@ -13,6 +13,7 @@ import ProductDetail from './src/screens/ProductDetail';
 import OrderSummary from './src/screens/OrderSummary';
 import OrderHistory from './src/screens/OrderHistory';
 import VerifyOTP from './src/screens/Register/VerifyOTP';
+import Settings from './src/screens/Settings';
 
 const Stack = createNativeStackNavigator();
 
@@ -132,14 +133,14 @@ const App = () => {
 
         <Stack.Screen name="TableMap">
           {({ navigation }) => (
-            <TableMap 
+            <TableMap
               onNavigate={(screen, params) => {
                 if (params?.reset) {
                   navigation.reset({ index: 0, routes: [{ name: screen }] });
                 } else {
                   navigation.navigate(screen, params);
                 }
-              }} 
+              }}
             />
           )}
         </Stack.Screen>
@@ -205,6 +206,16 @@ const App = () => {
 
         <Stack.Screen name="OrderHistory">
           {({ navigation }) => <OrderHistory onNavigate={(screen, params) => navigation.navigate(screen, params)} />}
+        </Stack.Screen>
+
+        <Stack.Screen name="Settings">
+          {({ navigation }) => <Settings onNavigate={(screen, params) => {
+            if (params?.reset) {
+              navigation.reset({ index: 0, routes: [{ name: screen }] });
+            } else {
+              navigation.navigate(screen, params);
+            }
+          }} />}
         </Stack.Screen>
       </Stack.Navigator>
     </NavigationContainer>

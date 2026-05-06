@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { View, Text, ScrollView, Pressable, StatusBar, ActivityIndicator, Dimensions, RefreshControl, useWindowDimensions, TextInput, StyleSheet } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import styles from './TableMap.styles';
@@ -19,6 +19,10 @@ import EditReserveSheet from './components/EditReserveSheet';
 import InvoiceDetailSheet from './components/InvoiceDetailSheet';
 import UpdateGuestSheet from './components/UpdateGuestSheet';
 import TakeawayDetailSheet from './components/TakeawayDetailSheet';
+import FilterModal from './components/FilterModal';
+import NotificationModal from './components/NotificationModal';
+import { listenToFirebase } from '../../utils/firebaseListener';
+import ReadyToServeToast from '../../components/ReadyToServeToast';
 
 const { width: windowWidth } = Dimensions.get('window');
 
@@ -40,6 +44,9 @@ const TableMap = ({ onNavigate }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showStats, setShowStats] = useState(false);
   const [showPromo, setShowPromo] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showNotiModal, setShowNotiModal] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('ALL');
 
   // Sheets state
   const [selectedTable, setSelectedTable] = useState(null);
@@ -49,6 +56,14 @@ const TableMap = ({ onNavigate }) => {
   const [invoiceTable, setInvoiceTable] = useState(null);
   const [editReserveTable, setEditReserveTable] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
+  const firebaseListenerRef = useRef(null);
+  const ordersListenerRef = useRef(null);
+  const isInitialLoad = useRef(true);
+  const notifiedOrdersRef = useRef(new Set()); // track orders đã thông báo
+  const tablesRef = useRef([]); // ref để truy cập tables trong callback
+
+  // Toast state
+  const [activeToast, setActiveToast] = useState(null);
 
   // Đồng hồ thời gian thực - cập nhật mỗi giây
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -68,8 +83,9 @@ const TableMap = ({ onNavigate }) => {
     return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
   };
 
-  const fetchData = useCallback(async () => {
-    if (!refreshing) setLoading(true);
+  const fetchData = useCallback(async (showSpinner = false) => {
+    // Chỉ hiện loading spinner lần đầu hoặc khi kéo refresh thủ công
+    if (showSpinner || isInitialLoad.current) setLoading(true);
     try {
       const [tableRes, allInvoices, resRes] = await Promise.all([
         tableApi.getAll(),
@@ -94,6 +110,7 @@ const TableMap = ({ onNavigate }) => {
         return { ...t, reservation: res, invoice: activeInvoice };
       });
       setTables(mappedTables);
+      tablesRef.current = mappedTables; // giữ ref đồng bộ
 
       const takeaways = invoices.filter(inv =>
         inv.loaiDonHang === 'MANG_VE' &&
@@ -102,11 +119,12 @@ const TableMap = ({ onNavigate }) => {
       );
       setTakeawayOrders(takeaways);
     } catch (err) {
-      console.error('Fetch data error:', err);
+      console.log('Fetch data error:', err);
     } finally {
+      isInitialLoad.current = false;
       setLoading(false);
     }
-  }, [refreshing]);
+  }, []);
 
   const loadUserData = async () => {
     try {
@@ -125,15 +143,69 @@ const TableMap = ({ onNavigate }) => {
   // Tự động làm mới khi màn hình được focus
   useFocusEffect(
     useCallback(() => {
+      isInitialLoad.current = true;
       loadUserData();
-      fetchData();
+      fetchData(true);
+
+      // Bắt đầu lắng nghe Firebase Realtime Database cho node tables/
+      const listener = listenToFirebase('tables', (firebaseTables) => {
+        if (!firebaseTables || typeof firebaseTables !== 'object') return;
+        // firebaseTables là object { "2": { idBan, tinhTrang, ... }, "3": {...}, ... }
+        const updates = Object.values(firebaseTables);
+        if (updates.length === 0) return;
+
+        // Cập nhật trạng thái bàn SILENT (không trigger loading spinner)
+        setTables(prevTables => {
+          if (prevTables.length === 0) return prevTables;
+          const next = prevTables.map(table => {
+            const fbTable = updates.find(u => u.idBan === table.idBan);
+            if (fbTable && fbTable.tinhTrang !== table.tinhTrangBan) {
+              return { ...table, tinhTrangBan: fbTable.tinhTrang };
+            }
+            return table;
+          });
+          tablesRef.current = next;
+          return next;
+        });
+      });
+
+      firebaseListenerRef.current = listener;
+
+      // Lắng nghe orders/ — thông báo khi đơn chuyển sang CHO_LAY_MON
+      const ordersListener = listenToFirebase('orders', (firebaseOrders) => {
+        if (!firebaseOrders || typeof firebaseOrders !== 'object') return;
+        const orderUpdates = Object.values(firebaseOrders);
+
+        orderUpdates.forEach(order => {
+          const key = `${order.idHoaDon}_${order.trangThai}`;
+          if (order.trangThai === 'CHO_LAY_MON' && !notifiedOrdersRef.current.has(key)) {
+            notifiedOrdersRef.current.add(key);
+
+            // Tìm tên bàn từ danh sách bàn hiện tại
+            const matchedTable = tablesRef.current.find(
+              t => t.invoice?.idHoaDon === order.idHoaDon
+            );
+            const tableName = matchedTable?.tenBan || `Đơn #${order.idHoaDon}`;
+
+            setActiveToast({
+              id: key,
+              message: `${tableName} — Đồ uống đã pha xong, ra quầy lấy món nhé!`,
+              duration: 6000,
+            });
+          }
+        });
+      });
+
+      ordersListenerRef.current = ordersListener;
+
+      return () => {
+        firebaseListenerRef.current?.stop();
+        firebaseListenerRef.current = null;
+        ordersListenerRef.current?.stop();
+        ordersListenerRef.current = null;
+      };
     }, [fetchData])
   );
-
-  useEffect(() => {
-    const timer = setInterval(fetchData, 30000);
-    return () => clearInterval(timer);
-  }, [fetchData]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -141,9 +213,15 @@ const TableMap = ({ onNavigate }) => {
   }, [fetchData]);
 
   const filteredTables = useMemo(() => {
-    if (!searchQuery) return tables;
-    return tables.filter(t => t.tenBan?.toLowerCase().includes(searchQuery.toLowerCase()));
-  }, [tables, searchQuery]);
+    let result = tables;
+    if (statusFilter !== 'ALL') {
+      result = result.filter(t => t.tinhTrangBan === statusFilter);
+    }
+    if (searchQuery) {
+      result = result.filter(t => t.tenBan?.toLowerCase().includes(searchQuery.toLowerCase()));
+    }
+    return result;
+  }, [tables, searchQuery, statusFilter]);
 
   const filteredTakeaways = useMemo(() => {
     if (!searchQuery) return takeawayOrders;
@@ -255,10 +333,10 @@ const TableMap = ({ onNavigate }) => {
             onChangeText={setSearchQuery}
           />
         </View>
-        <Pressable style={styles.filterBtn}>
+        <Pressable style={styles.filterBtn} onPress={() => setShowFilterModal(true)}>
           <Text style={styles.filterBtnIcon}>⌥</Text>
         </Pressable>
-        <Pressable style={styles.filterBtn}>
+        <Pressable style={styles.filterBtn} onPress={() => setShowNotiModal(true)}>
           <Text style={styles.filterBtnIcon}>🔔</Text>
           <View style={styles.tabletNotiBadge}>
             <Text style={styles.tabletNotiBadgeText}>3</Text>
@@ -576,6 +654,20 @@ const TableMap = ({ onNavigate }) => {
           onNavigate('Login', { reset: true });
         }} 
         user={currentUser}
+      />
+      <FilterModal 
+        isVisible={showFilterModal} 
+        onClose={() => setShowFilterModal(false)} 
+        currentFilter={statusFilter}
+        onSelectFilter={setStatusFilter}
+      />
+      <NotificationModal 
+        isVisible={showNotiModal} 
+        onClose={() => setShowNotiModal(false)} 
+      />
+      <ReadyToServeToast 
+        toast={activeToast}
+        onDismiss={() => setActiveToast(null)}
       />
     </View>
   );

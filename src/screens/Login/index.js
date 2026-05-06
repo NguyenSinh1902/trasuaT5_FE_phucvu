@@ -11,28 +11,31 @@ const Login = ({ onNavigate }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Thông báo', 'Vui lòng nhập đầy đủ email và mật khẩu');
+      setErrorMessage('Vui lòng nhập đầy đủ email và mật khẩu');
       return;
     }
+
+    setErrorMessage('');
 
     setLoading(true);
     try {
       const response = await authApi.login({ email, matKhau: password });
-      
+
       if (response.success && response.token) {
         await safeAsyncStorage.setItem('token', response.token);
         await safeAsyncStorage.setItem('user', JSON.stringify(response.user));
-        
+
         onNavigate && onNavigate('TableMap');
       } else {
-        Alert.alert('Lỗi đăng nhập', response.message || 'Không thể đăng nhập vào hệ thống');
+        setErrorMessage(response.message || 'Không thể đăng nhập vào hệ thống');
       }
     } catch (error) {
       // Sử dụng trường message đã được axiosClient trích xuất
-      Alert.alert('Lỗi đăng nhập', error.message || 'Kết nối máy chủ thất bại');
+      setErrorMessage(error.message || 'Kết nối máy chủ thất bại');
     } finally {
       setLoading(false);
     }
@@ -44,8 +47,8 @@ const Login = ({ onNavigate }) => {
 
       {/* Brand Side (Left on Tablet) */}
       <View style={styles.brandSide}>
-        <Image 
-          source={{ uri: 'https://images.unsplash.com/photo-1544424472-a1f9a2fbaf02?q=80&w=2670&auto=format&fit=crop' }} 
+        <Image
+          source={{ uri: 'https://images.unsplash.com/photo-1544424472-a1f9a2fbaf02?q=80&w=2670&auto=format&fit=crop' }}
           style={styles.bgImage}
           resizeMode="cover"
           blurRadius={32}
@@ -66,7 +69,7 @@ const Login = ({ onNavigate }) => {
       <View style={styles.formSide}>
         <View style={styles.cornerBlob} pointerEvents="none" />
         <View style={styles.cornerBlob2} pointerEvents="none" />
-        
+
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.formWrapper}>
             <Text style={styles.headerText}>Chào mừng trở lại!</Text>
@@ -74,39 +77,47 @@ const Login = ({ onNavigate }) => {
 
             <View style={styles.inputContainer}>
               <Text style={styles.icon}>👤</Text>
-              <TextInput 
-                style={styles.input} 
-                placeholder="Tài khoản / Email" 
+              <TextInput
+                style={styles.input}
+                placeholder="Tài khoản / Email"
                 placeholderTextColor="#9CA3AF"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  if (errorMessage) setErrorMessage('');
+                }}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
             </View>
 
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, errorMessage ? { borderColor: '#FCA5A5' } : null]}>
               <Text style={styles.icon}>🔒</Text>
-              <TextInput 
-                style={styles.input} 
-                placeholder="Mật khẩu" 
-                secureTextEntry 
+              <TextInput
+                style={styles.input}
+                placeholder="Mật khẩu"
+                secureTextEntry
                 placeholderTextColor="#9CA3AF"
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (errorMessage) setErrorMessage('');
+                }}
               />
             </View>
 
-            <Pressable 
-              style={[styles.submitBtnWrapper, loading && { opacity: 0.7 }]} 
+            {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+
+            <Pressable
+              style={[styles.submitBtnWrapper, loading && { opacity: 0.7 }]}
               onPress={handleLogin}
               disabled={loading}
             >
-              <LinearGradient 
-                colors={['#2D5A27', '#059669']} 
-                style={styles.btnGradient} 
-                start={{x:0, y:0}} 
-                end={{x:1, y:0}}
+              <LinearGradient
+                colors={['#2D5A27', '#059669']}
+                style={styles.btnGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
               >
                 {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Đăng nhập</Text>}
               </LinearGradient>

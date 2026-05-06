@@ -168,6 +168,26 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
     ]);
   };
 
+  const handleCancelInvoice = async () => {
+    if (!invoice?.idHoaDon) return;
+    Alert.alert('Hủy hóa đơn', 'Bạn có chắc chắn muốn hủy toàn bộ hóa đơn này không? Hành động này không thể hoàn tác.', [
+      { text: 'Bỏ qua' },
+      { text: 'Xác nhận hủy', style: 'destructive', onPress: async () => {
+        setLoading(true);
+        try {
+          await orderApi.cancelOrder(invoice.idHoaDon);
+          if (onRefresh) onRefresh();
+          onClose();
+          Alert.alert('Thành công', 'Đã hủy hóa đơn.');
+        } catch (err) { 
+          Alert.alert('Lỗi', 'Không thể hủy hóa đơn.'); 
+        } finally { 
+          setLoading(false); 
+        }
+      }}
+    ]);
+  };
+
   if (!table) return null;
 
   return (
@@ -254,19 +274,26 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
 
               {/* ACTION FOOTER */}
               {invoice.trangThai !== 'DA_THANH_TOAN' && (
-                <View style={{ flexDirection: 'row', gap: 16 }}>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
                    <ActionButton 
-                      title="➕ Gọi thêm món" bgColor="#F1F5F9" textColor="#475569" borderColor="#E2E8F0"
-                      horizontal containerStyle={{ flex: 1, height: 65 }} 
+                      title="Gọi món" icon="➕" bgColor="#F1F5F9" textColor="#475569" borderColor="#E2E8F0"
+                      horizontal containerStyle={{ flex: 1, height: 54 }} 
                       onPress={() => { onOpenMenu([table], table?.reservation?.idPhieuDat || table?.idPhieuDatTemp, false, invoice?.idHoaDon); onClose(); }} 
                    />
+                   
                    {invoice.trangThai !== 'CHO_THANH_TOAN' && (
                       <ActionButton 
                          title="Yêu cầu thanh toán" icon="💳" gradient={['#FCD34D', '#F59E0B']} textColor="#78350F" shadowColor="#D97706"
-                         horizontal containerStyle={{ flex: 1, height: 65 }} 
+                         horizontal containerStyle={{ flex: 1.8, height: 54 }} 
                          onPress={handleRequestPayment} disabled={loading}
                       />
                    )}
+
+                   <ActionButton 
+                      title="Hủy đơn" icon="🗑️" bgColor="#FFF1F2" borderColor="#FDA4AF" textColor="#E11D48"
+                      horizontal containerStyle={{ flex: 1, height: 54 }} 
+                      onPress={handleCancelInvoice} disabled={loading}
+                   />
                 </View>
               )}
             </ScrollView>
