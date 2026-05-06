@@ -3,7 +3,7 @@ import safeAsyncStorage from '../utils/storage';
 
 const axiosClient = axios.create({
   baseURL: 'http://10.0.2.2:8080/api',
-  timeout: 30000, // Tăng timeout lên 30s vì gửi email có thể chậm
+  timeout: 50000, // Tăng timeout lên 50s vì gửi email có thể chậm
   headers: {
     'Content-Type': 'application/json',
   },
@@ -31,7 +31,7 @@ axiosClient.interceptors.response.use(
   (error) => {
     // Trích xuất message chi tiết nhất có thể từ API
     let message = 'Đã có lỗi xảy ra';
-    
+
     if (error.response && error.response.data) {
       const data = error.response.data;
       // Ưu tiên lấy message chi tiết, sau đó đến error, title hoặc detail
@@ -45,7 +45,7 @@ axiosClient.interceptors.response.use(
       message: message,
       data: error.response?.data
     });
-    
+
     // Trả về một object lỗi chứa message để UI có thể hiển thị bằng Alert
     return Promise.reject({ ...error, message });
   }
