@@ -433,14 +433,14 @@ const styles = StyleSheet.create({
   tabletContainer: {
     flexDirection: 'row',
     flex: 1,
-    backgroundColor: '#EAF3EF', // Premium Light Matcha Background
+    backgroundColor: '#FFFFFF', // Nền tổng thể
   },
 
   // --- SIDEBAR ---
   tabletSidebar: {
     width: 280,
-    backgroundColor: '#F1F8F5',
-    paddingTop: 40, // Added for status bar safety
+    backgroundColor: '#E6F0EA', // Xanh nhạt rõ ràng hơn (Light Matcha)
+    paddingTop: 40,
     paddingBottom: 20,
     paddingHorizontal: 16,
     justifyContent: 'space-between',
@@ -623,7 +623,7 @@ const styles = StyleSheet.create({
   // --- MAIN CONTENT ---
   tabletMain: {
     flex: 1,
-    backgroundColor: '#EAF3EF', // Light Matcha Background
+    backgroundColor: '#FFFFFF', // Nền dưới danh sách bàn màu trắng tinh
   },
 
   // --- TOP HEADER (MAIN) ---
@@ -634,30 +634,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     paddingTop: 32,
     paddingBottom: 24,
+    backgroundColor: '#F1F5F9', // Màu Header đậm hơn xíu để phân biệt rõ ràng
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 4,
+    zIndex: 10, // Đảm bảo shadow đè lên ScrollView
   },
 
   // Segmented Control
   globalToggle: {
     flexDirection: 'row',
     backgroundColor: '#E2E8F0',
-    borderRadius: 12,
+    borderRadius: 24,
     padding: 4,
     height: 46,
     width: 240,
   },
   toggleTab: {
     flex: 1,
-    borderRadius: 10,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
   },
   toggleTabActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: 'transparent',
   },
   toggleTextInactive: {
     color: '#64748B',
@@ -665,7 +670,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   toggleTextActive: {
-    color: '#1E293B',
+    color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 14,
   },
@@ -777,7 +782,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
     justifyContent: 'space-between',
-    overflow: 'hidden',
+    overflow: 'visible',
     // Soft Shadow
     shadowColor: '#64748B',
     shadowOffset: { width: 0, height: 4 },
@@ -844,6 +849,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center', // Căn giữa đồng hồ
     alignItems: 'center',
+    marginTop: 12,
     marginBottom: 8,
   },
   newCardInfoTag: {

@@ -67,6 +67,7 @@ const EmptyTableSheet = ({ table, tables, onClose, onReserve, onOpenMenu, onRefr
   const [note, setNote] = useState('');
   const [selectedTables, setSelectedTables] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   
   const { width } = useWindowDimensions();
   const isTablet = width >= 700;
@@ -89,7 +90,15 @@ const EmptyTableSheet = ({ table, tables, onClose, onReserve, onOpenMenu, onRefr
     );
   };
 
+  const totalCapacity = (tables || [])
+    .filter(t => selectedTables.includes(t.idBan))
+    .reduce((sum, t) => sum + (t.sucChua || 2), 0);
+    
+  const isOverCapacity = guestCount > totalCapacity;
+
   const handleConfirm = async () => {
+    setError(null);
+    if (isOverCapacity) return;
     setLoading(true);
     try {
       let now = new Date();
@@ -116,7 +125,7 @@ const EmptyTableSheet = ({ table, tables, onClose, onReserve, onOpenMenu, onRefr
       onOpenMenu && onOpenMenu(fullSelectedObjects, newReservationId);
       onClose();
     } catch (err) {
-      Alert.alert('Lỗi', 'Không thể mở bàn. Vui lòng thử lại.');
+      setError('Không thể mở bàn. Vui lòng thử lại sau.');
       console.error(err);
     } finally {
       setLoading(false);
@@ -166,15 +175,24 @@ const EmptyTableSheet = ({ table, tables, onClose, onReserve, onOpenMenu, onRefr
                   {/* Stepper for Guests */}
                   <View style={{ marginBottom: 20 }}>
                      <Text style={{ color: '#475569', fontSize: 14, fontWeight: '600', marginBottom: 8, marginLeft: 4 }}>👥 Tổng số lượng khách</Text>
-                     <View style={{ flexDirection: 'row', backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', padding: 8, alignItems: 'center', alignSelf: 'flex-start' }}>
-                        <Pressable onPress={() => setGuestCount(Math.max(1, guestCount - 1))} style={{ width: 44, height: 44, backgroundColor: '#FFFFFF', borderRadius: 8, justifyContent: 'center', alignItems: 'center', shadowColor:'#000', shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 }}>
-                           <Text style={{ fontSize: 24, color: '#475569', fontWeight: 'bold' }}>−</Text>
+                     <View style={{ flexDirection: 'row', backgroundColor: isOverCapacity ? '#FEF2F2' : '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: isOverCapacity ? '#FECACA' : '#E2E8F0', padding: 8, alignItems: 'center', alignSelf: 'flex-start' }}>
+                        <Pressable onPress={() => setGuestCount(Math.max(1, guestCount - 1))} style={{ width: 44, height: 44, backgroundColor: '#FFFFFF', borderRadius: 8, justifyContent: 'center', alignItems: 'center', shadowColor:'#000', shadowOpacity: 0.05, shadowRadius: 2, elevation: 1, borderWidth: isOverCapacity ? 1 : 0, borderColor: '#FEE2E2' }}>
+                           <Text style={{ fontSize: 24, color: isOverCapacity ? '#EF4444' : '#475569', fontWeight: 'bold' }}>−</Text>
                         </Pressable>
-                        <Text style={{ fontSize: 22, fontWeight: '800', color: '#1E293B', marginHorizontal: 28 }}>{guestCount}</Text>
-                        <Pressable onPress={() => setGuestCount(guestCount + 1)} style={{ width: 44, height: 44, backgroundColor: '#059669', borderRadius: 8, justifyContent: 'center', alignItems: 'center', shadowColor:'#059669', shadowOpacity: 0.2, shadowRadius: 4, elevation: 2 }}>
+                        <Text style={{ fontSize: 22, fontWeight: '800', color: isOverCapacity ? '#DC2626' : '#1E293B', marginHorizontal: 28 }}>{guestCount}</Text>
+                        <Pressable onPress={() => setGuestCount(guestCount + 1)} style={{ width: 44, height: 44, backgroundColor: isOverCapacity ? '#EF4444' : '#059669', borderRadius: 8, justifyContent: 'center', alignItems: 'center', shadowColor: isOverCapacity ? '#EF4444' : '#059669', shadowOpacity: 0.2, shadowRadius: 4, elevation: 2 }}>
                            <Text style={{ fontSize: 24, color: '#FFFFFF', fontWeight: 'bold' }}>+</Text>
                         </Pressable>
                      </View>
+                     
+                     {isOverCapacity && (
+                       <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, backgroundColor: '#FEF2F2', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#FECACA' }}>
+                         <Text style={{ fontSize: 16, marginRight: 8 }}>⚠️</Text>
+                         <Text style={{ color: '#DC2626', fontSize: 13, fontWeight: '600', flex: 1 }}>
+                           Vượt quá sức chứa tối đa ({totalCapacity} người). Vui lòng gộp thêm bàn bên phải!
+                         </Text>
+                       </View>
+                     )}
                   </View>
                </View>
 
@@ -205,17 +223,25 @@ const EmptyTableSheet = ({ table, tables, onClose, onReserve, onOpenMenu, onRefr
 
             <View style={{ height: 1.5, backgroundColor: '#F1F5F9', marginVertical: 24, width: '100%' }} />
 
+            {error && (
+               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20, backgroundColor: '#FEF2F2', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#FECACA' }}>
+                 <Text style={{ fontSize: 18, marginRight: 8 }}>⚠️</Text>
+                 <Text style={{ color: '#DC2626', fontSize: 14, fontWeight: '600', flex: 1 }}>{error}</Text>
+               </View>
+            )}
+
             {/* ACTION FOOTER */}
             <View style={{ flexDirection: 'row', gap: 16 }}>
                <ActionButton 
                   title="Đặt bàn trước" icon="📅" gradient={['#FEF3C7', '#FDE68A']} textColor="#B45309" borderColor="#FCD34D" shadowColor="#F59E0B"
                   horizontal containerStyle={{ flex: 1, height: 65 }} 
                   onPress={() => { onClose(); onReserve && onReserve(); }} 
+                  disabled={isOverCapacity}
                />
                <ActionButton 
                   title="Xác nhận & Đặt món" icon="✅" gradient={['#34D399', '#059669']} textColor="#FFFFFF" shadowColor="#047857"
                   horizontal containerStyle={{ flex: 1, height: 65 }} 
-                  onPress={handleConfirm} disabled={loading}
+                  onPress={handleConfirm} disabled={loading || isOverCapacity}
                />
             </View>
 

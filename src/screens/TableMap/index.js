@@ -99,14 +99,42 @@ const TableMap = ({ onNavigate }) => {
 
       const mappedTables = tableData.map(t => {
         const res = reservations.find(r => r.danhSachBan?.some(b => b.idBan === t.idBan));
-        const tableInvoices = invoices.filter(inv =>
-          inv.loaiDonHang === 'TAI_BAN' &&
-          inv.danhSachTenBan?.includes(t.tenBan) &&
-          inv.trangThai !== 'DA_THANH_TOAN' &&
-          inv.trangThai !== 'DA_HUY' &&
-          inv.trangThai !== 'HOAN_TAT'
-        );
-        const activeInvoice = tableInvoices.length > 0 ? tableInvoices[tableInvoices.length - 1] : null;
+
+        let activeInvoice = null;
+
+        // Ưu tiên tìm hóa đơn qua idPhieuDat (Chính xác nhất khi đổi bàn)
+        if (res) {
+          const resInvoices = invoices.filter(inv =>
+            inv.idPhieuDat === res.idPhieuDat &&
+            inv.trangThai !== 'DA_THANH_TOAN' &&
+            inv.trangThai !== 'DA_HUY' &&
+            inv.trangThai !== 'HOAN_TAT'
+          );
+          // API trả về mới nhất ở đầu mảng (descending), nên lấy index 0
+          if (resInvoices.length > 0) {
+            activeInvoice = resInvoices[0];
+          }
+        }
+
+        // BẢO VỆ UI: Bàn trống thì tuyệt đối không hiển thị tiền (Tránh rác/zombie data từ BE)
+        // if (t.tinhTrangBan === 'TRONG') {
+        //   activeInvoice = null;
+        // }
+
+        // Fallback: Nếu không có phiếu đặt, nhưng bàn KHÔNG trống (tránh bàn trống hiện tiền)
+        // Tìm theo tên bàn
+        if (!activeInvoice && t.tinhTrangBan !== 'TRONG') {
+          const tableInvoices = invoices.filter(inv =>
+            inv.loaiDonHang === 'TAI_BAN' &&
+            inv.danhSachTenBan?.includes(t.tenBan) &&
+            inv.trangThai !== 'DA_THANH_TOAN' &&
+            inv.trangThai !== 'DA_HUY' &&
+            inv.trangThai !== 'HOAN_TAT'
+          );
+          // Lấy index 0 vì API trả về newest first
+          activeInvoice = tableInvoices.length > 0 ? tableInvoices[0] : null;
+        }
+
         return { ...t, reservation: res, invoice: activeInvoice };
       });
       setTables(mappedTables);
@@ -255,7 +283,7 @@ const TableMap = ({ onNavigate }) => {
     switch (status) {
       case 'CHO_XAC_NHAN': return { bg: '#BCF0DA', color: '#10B981', label: 'Chờ xác nhận' };
       case 'DANG_PHA_CHE': return { bg: '#DBEAFE', color: '#3B82F6', label: 'Đang pha chế' };
-      case 'CHO_LAY_MON': return { bg: '#CCFBF1', color: '#0D9488', label: 'Chờ lấy món' };
+      case 'CHO_LAY_MON': return { bg: '#CFFAFE', color: '#06B6D4', label: 'Chờ lấy món' };
       case 'DANG_PHUC_VU': return { bg: '#DCFCE7', color: '#22C55E', label: 'Đang phục vụ' };
       case 'CHO_THANH_TOAN': return { bg: '#FEF3C7', color: '#D97706', label: 'Chờ thanh toán' };
       case 'DA_THANH_TOAN': return { bg: '#FEF08A', color: '#A16207', label: 'Đã thanh toán' };
@@ -281,7 +309,7 @@ const TableMap = ({ onNavigate }) => {
   // =========================================================
 
   const renderTabletSidebar = () => (
-    <Sidebar 
+    <Sidebar
       activeRoute="TableMap"
       onNavigate={onNavigate}
       currentUser={currentUser}
@@ -296,10 +324,22 @@ const TableMap = ({ onNavigate }) => {
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 32 }}>
         <View style={styles.globalToggle}>
           <Pressable style={[styles.toggleTab, activeTab === 'dine' && styles.toggleTabActive]} onPress={() => setActiveTab('dine')}>
-            <Text style={activeTab === 'dine' ? styles.toggleTextActive : styles.toggleTextInactive}>Tại bàn</Text>
+            {activeTab === 'dine' ? (
+              <LinearGradient colors={['#84CC7B', '#5B9A55']} style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={styles.toggleTextActive}>Tại bàn</Text>
+              </LinearGradient>
+            ) : (
+              <Text style={styles.toggleTextInactive}>Tại bàn</Text>
+            )}
           </Pressable>
           <Pressable style={[styles.toggleTab, activeTab === 'take' && styles.toggleTabActive]} onPress={() => setActiveTab('take')}>
-            <Text style={activeTab === 'take' ? styles.toggleTextActive : styles.toggleTextInactive}>Mang về</Text>
+            {activeTab === 'take' ? (
+              <LinearGradient colors={['#84CC7B', '#5B9A55']} style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={styles.toggleTextActive}>Mang về</Text>
+              </LinearGradient>
+            ) : (
+              <Text style={styles.toggleTextInactive}>Mang về</Text>
+            )}
           </Pressable>
         </View>
         {activeTab === 'dine' && (
@@ -354,11 +394,11 @@ const TableMap = ({ onNavigate }) => {
     const showOnlyStatusTag = t.tinhTrangBan === 'DA_DAT';
 
     // Xác định màu gradient dựa trên trạng thái
-    let gradientColors = ['#FFFFFF', '#F1F5F9']; // Mặc định: Trống (Trắng -> Xám nhẹ)
+    let gradientColors = ['#FFFFFF', '#F8FAFC']; // Mặc định: Trống (Trắng -> Xám cực kỳ nhạt, gần như trắng)
     if (t.tinhTrangBan === 'CO_KHACH') {
-      gradientColors = ['#FFFFFF', '#FFF1F2']; // Đang dùng (Trắng -> Hồng/Đỏ nhẹ)
+      gradientColors = ['#FFFFFF', '#FECACA']; // Đang dùng (Trắng -> Đỏ rõ hơn)
     } else if (t.tinhTrangBan === 'DA_DAT') {
-      gradientColors = ['#FFFFFF', '#F0F9FF']; // Đã đặt (Trắng -> Xanh dương nhẹ)
+      gradientColors = ['#FFFFFF', '#BFDBFE']; // Đã đặt (Trắng -> Xanh dương rõ và đậm hơn)
     }
 
     // Elapsed time
@@ -368,19 +408,45 @@ const TableMap = ({ onNavigate }) => {
         ? t.reservation.thoiGianDat.slice(11, 16)
         : '--:--:--';
 
+    // Phát sáng viền phong cách Neon Glass
+    const hasGlow = !!orderStatus;
+    const glowColor = hasGlow ? orderStatus.color : '#64748B';
+    const glowOpacity = hasGlow ? 0.4 : 0.08; // Giảm opacity để quầng sáng dịu hơn
+    const glowRadius = hasGlow ? 15 : 8;
+    const glowOffset = hasGlow ? { width: 0, height: 0 } : { width: 0, height: 4 };
+
     return (
       <Pressable
         key={t.idBan}
-        style={[styles.tabletTableCard, { borderTopColor: s.baseColor }]}
+        style={[
+          styles.tabletTableCard, 
+          { 
+            borderTopColor: s.baseColor,
+            borderColor: hasGlow ? `${glowColor}66` : '#E5E7EB',
+            borderWidth: hasGlow ? 2 : 1,
+            shadowColor: glowColor,
+            shadowOpacity: glowOpacity,
+            shadowRadius: glowRadius,
+            shadowOffset: glowOffset,
+            elevation: hasGlow ? 10 : 4,
+          }
+        ]}
         onPress={() => handleTablePress(t)}
       >
         <LinearGradient
           colors={gradientColors}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
+          style={[StyleSheet.absoluteFill, { borderRadius: 16 }]}
         />
-        
+
+        {/* Bell Icon decoration for specific statuses */}
+        {(t.invoice?.trangThai === 'CHO_THANH_TOAN' || t.invoice?.trangThai === 'CHO_LAY_MON') && (
+          <View style={{ position: 'absolute', top: -12, right: -5, zIndex: 99, transform: [{ rotate: '15deg' }] }}>
+            <Text style={{ fontSize: 24 }}>🔔</Text>
+          </View>
+        )}
+
         {/* Nội dung Card */}
         <View style={{ flex: 1, justifyContent: 'space-between' }}>
           {/* Row 1: Tên bàn + Tag trạng thái đơn */}
@@ -415,7 +481,7 @@ const TableMap = ({ onNavigate }) => {
               adjustsFontSizeToFit
               numberOfLines={1}
             >
-              {t.invoice?.tongThanhToan ? Math.round(t.invoice.tongThanhToan).toLocaleString('vi-VN') + ' VND' : '0 VND'}
+              {hasInvoice && t.invoice?.tongThanhToan ? Math.round(t.invoice.tongThanhToan).toLocaleString('vi-VN') + ' VND' : '0 VND'}
             </Text>
           </View>
         </View>
@@ -464,7 +530,7 @@ const TableMap = ({ onNavigate }) => {
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
-        
+
         <View style={{ flex: 1 }}>
           {/* Header Row */}
           <View style={styles.newCardTopRow}>
@@ -616,6 +682,13 @@ const TableMap = ({ onNavigate }) => {
         <>
           {renderTabletSidebar()}
           <View style={styles.tabletMain}>
+            {/* --- WATERMARK DECORATIONS --- */}
+            <View style={[StyleSheet.absoluteFillObject, { overflow: 'hidden', zIndex: 0 }]} pointerEvents="none">
+              <Text style={{ position: 'absolute', top: 120, right: -40, fontSize: 320, opacity: 0.05, transform: [{ rotate: '15deg' }] }}>🍃</Text>
+              <Text style={{ position: 'absolute', bottom: -50, left: -20, fontSize: 260, opacity: 0.05, transform: [{ rotate: '-25deg' }] }}>🧋</Text>
+              <Text style={{ position: 'absolute', top: 450, left: 200, fontSize: 180, opacity: 0.05, transform: [{ rotate: '45deg' }] }}>🌿</Text>
+            </View>
+
             {renderTabletTopHeader()}
             {renderTabletGrid()}
             {renderTabletFABs()}
@@ -643,29 +716,29 @@ const TableMap = ({ onNavigate }) => {
       {invoiceTable && <InvoiceDetailSheet table={invoiceTable} onClose={() => setInvoiceTable(null)} onRefresh={fetchData} onOpenMenu={(tables, resId, isTakeaway, invId) => handleOpenMenu(tables, resId, isTakeaway, invId)} />}
       {editReserveTable && <EditReserveSheet table={editReserveTable} onClose={() => setEditReserveTable(null)} onRefresh={fetchData} />}
       {selectedTakeaway && <TakeawayDetailSheet invoice={selectedTakeaway} onClose={() => setSelectedTakeaway(null)} onRefresh={fetchData} onOpenMenu={(tables, res, takeaway, invId) => handleOpenMenu([], null, true, invId)} />}
-      <UserProfileModal 
-        isVisible={showProfile} 
-        onClose={() => setShowProfile(false)} 
-        onLogout={async () => { 
-          setShowProfile(false); 
+      <UserProfileModal
+        isVisible={showProfile}
+        onClose={() => setShowProfile(false)}
+        onLogout={async () => {
+          setShowProfile(false);
           await safeAsyncStorage.removeItem('token');
           await safeAsyncStorage.removeItem('user');
           // Reset navigation để không quay lại được trang TableMap bằng nút Back
           onNavigate('Login', { reset: true });
-        }} 
+        }}
         user={currentUser}
       />
-      <FilterModal 
-        isVisible={showFilterModal} 
-        onClose={() => setShowFilterModal(false)} 
+      <FilterModal
+        isVisible={showFilterModal}
+        onClose={() => setShowFilterModal(false)}
         currentFilter={statusFilter}
         onSelectFilter={setStatusFilter}
       />
-      <NotificationModal 
-        isVisible={showNotiModal} 
-        onClose={() => setShowNotiModal(false)} 
+      <NotificationModal
+        isVisible={showNotiModal}
+        onClose={() => setShowNotiModal(false)}
       />
-      <ReadyToServeToast 
+      <ReadyToServeToast
         toast={activeToast}
         onDismiss={() => setActiveToast(null)}
       />

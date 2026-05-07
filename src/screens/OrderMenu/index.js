@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, ScrollView, Pressable, TextInput, StatusBar, Image, ActivityIndicator, useWindowDimensions, StyleSheet, Animated, PanResponder, LayoutAnimation, UIManager, Platform
+  View, Text, ScrollView, Pressable, TextInput, StatusBar, Image, ActivityIndicator, useWindowDimensions, StyleSheet, Animated, PanResponder, LayoutAnimation, UIManager, Platform, Modal
 } from 'react-native';
 
 // LayoutAnimation is natively supported on New Architecture (RN 0.84+)
@@ -200,10 +200,12 @@ const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, reservation, cart
   const [activeCat, setActiveCat] = useState('all');
   const [categories, setCategories] = useState([{ idDanhMuc: 'all', tenDanhMuc: 'Khám Phá', emoji: '🌟' }]);
   const [sections, setSections] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [orderSuccess, setOrderSuccess] = useState(false);
+  const [orderError, setOrderError] = useState(null);
 
   // Right pane state using locally provided cart
-  const [submitting, setSubmitting] = useState(false);
   const [tabletPopupData, setTabletPopupData] = useState(null);
   const items = cart || [];
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -268,10 +270,10 @@ const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, reservation, cart
           }
 
           if (onClear) onClear();
-          Alert.alert('Thành công', 'Đã lưu đơn hàng thành công!', [{ text: 'OK', onPress: () => onNavigate('TableMap') }]);
+          setOrderSuccess(true);
         } catch (err) {
           console.error(err);
-          Alert.alert('Lỗi', 'Có lỗi xảy ra khi xử lý hóa đơn.');
+          setOrderError('Có lỗi xảy ra khi xử lý hóa đơn.');
         } finally {
           setSubmitting(false);
         }
@@ -548,6 +550,60 @@ const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, reservation, cart
           />
         </View>
       )}
+
+      {/* SUCCESS MODAL */}
+      <Modal visible={orderSuccess} transparent animationType="fade" statusBarTranslucent>
+         <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', alignItems: 'center' }}>
+            <View style={{ backgroundColor: '#FFFFFF', width: 340, borderRadius: 24, padding: 32, alignItems: 'center', shadowColor: '#10B981', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.2, shadowRadius: 24, elevation: 10 }}>
+               <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#D1FAE5', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
+                  <Text style={{ fontSize: 40 }}>✅</Text>
+               </View>
+               <Text style={{ fontSize: 24, fontWeight: '800', color: '#1E293B', marginBottom: 8 }}>Thành công!</Text>
+               <Text style={{ fontSize: 16, color: '#64748B', textAlign: 'center', marginBottom: 28 }}>Đã gửi lệnh pha chế cho quầy.</Text>
+               
+               <Pressable 
+                  style={({pressed}) => [{ width: '100%', paddingVertical: 16, borderRadius: 16, alignItems: 'center', opacity: pressed ? 0.8 : 1 }]}
+                  onPress={() => {
+                     setOrderSuccess(false);
+                     if (onNavigate) onNavigate('TableMap');
+                  }}
+               >
+                 <LinearGradient colors={['#10B981', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16 }} />
+                 <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700' }}>Quay lại Sơ đồ</Text>
+               </Pressable>
+            </View>
+         </View>
+      </Modal>
+
+      {/* ERROR MODAL */}
+      <Modal visible={!!orderError} transparent animationType="fade" statusBarTranslucent>
+         <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', alignItems: 'center' }}>
+            <View style={{ backgroundColor: '#FFFFFF', width: 340, borderRadius: 24, padding: 32, alignItems: 'center' }}>
+               <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
+                  <Text style={{ fontSize: 40 }}>❌</Text>
+               </View>
+               <Text style={{ fontSize: 24, fontWeight: '800', color: '#1E293B', marginBottom: 8 }}>Lỗi đặt món</Text>
+               <Text style={{ fontSize: 16, color: '#64748B', textAlign: 'center', marginBottom: 28 }}>{orderError}</Text>
+               
+               <Pressable 
+                  style={({pressed}) => [{ width: '100%', paddingVertical: 16, borderRadius: 16, backgroundColor: '#F1F5F9', alignItems: 'center', opacity: pressed ? 0.8 : 1 }]}
+                  onPress={() => setOrderError(null)}
+               >
+                 <Text style={{ color: '#475569', fontSize: 16, fontWeight: '700' }}>Đóng lại</Text>
+               </Pressable>
+            </View>
+         </View>
+      </Modal>
+
+      {/* FULL SCREEN SUBMITTING LOADING OVERLAY */}
+      <Modal visible={submitting} transparent animationType="fade" statusBarTranslucent>
+         <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)', justifyContent: 'center', alignItems: 'center' }}>
+            <View style={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', padding: 32, borderRadius: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 20, elevation: 15 }}>
+               <ActivityIndicator size="large" color="#10B981" />
+               <Text style={{ marginTop: 16, fontSize: 16, fontWeight: '700', color: '#1E293B' }}>Đang lưu đơn hàng...</Text>
+            </View>
+         </View>
+      </Modal>
 
     </View>
   );

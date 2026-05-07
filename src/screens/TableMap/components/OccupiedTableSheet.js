@@ -7,6 +7,10 @@ import orderApi from '../../../api/orderApi';
 const OccupiedTableSheet = ({ table, tables, onClose, onUpdateGuest, onRefresh, onOpenMenu, onViewInvoice }) => {
   const [loading, setLoading] = useState(false);
   const [actionType, setActionType] = useState(null); // 'merge', 'change', null
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showPaymentConfirm, setShowPaymentConfirm] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [paymentError, setPaymentError] = useState(null);
   const { width } = useWindowDimensions();
   const isTablet = width >= 700;
   const [elapsedTime, setElapsedTime] = useState('00:00:00');
@@ -65,63 +69,51 @@ const OccupiedTableSheet = ({ table, tables, onClose, onUpdateGuest, onRefresh, 
     }
   };
 
-  const handleCancel = async () => {
-    if (!reservationId) return;
-    Alert.alert(
-      'Xác nhận',
-      'Bạn có chắc chắn muốn hủy phiếu đặt/mở bàn này không?',
-      [
-        { text: 'Bỏ qua', style: 'cancel' },
-        {
-          text: 'Đồng ý',
-          style: 'destructive',
-          onPress: async () => {
-            setLoading(true);
-            try {
-              await reservationApi.cancelReservation(reservationId);
-              if (onRefresh) await onRefresh();
-              onClose();
-            } catch (err) {
-              Alert.alert('Lỗi', 'Không thể hủy phiếu. Vui lòng thử lại.');
-            } finally {
-              setLoading(false);
-            }
-          }
-        }
-      ]
-    );
+  const handleCancelClick = () => {
+    setShowCancelConfirm(true);
   };
 
-  const handleRequestPayment = async () => {
+  const confirmCancel = async () => {
+    setShowCancelConfirm(false);
+    if (!reservationId) return;
+    setLoading(true);
+    try {
+      await reservationApi.cancelReservation(reservationId);
+      if (onRefresh) await onRefresh();
+      onClose();
+    } catch (err) {
+      Alert.alert('Lỗi', 'Không thể hủy phiếu. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRequestPaymentClick = () => {
     const invoiceId = table.invoice?.idHoaDon;
     if (!invoiceId) {
-      Alert.alert('Thanh toán', 'Bàn này hiện chưa có hóa đơn hoặc hóa đơn không còn hiệu lực.');
+      setPaymentError('Bàn này hiện chưa có hóa đơn hoặc hóa đơn không còn hiệu lực.');
       return;
     }
+    setShowPaymentConfirm(true);
+  };
 
-    Alert.alert(
-      'Yêu cầu thanh toán',
-      'Bạn muốn gửi yêu cầu thanh toán cho hóa đơn này?',
-      [
-        { text: 'Bỏ qua', style: 'cancel' },
-        {
-          text: 'Xác nhận',
-          onPress: async () => {
-            setLoading(true);
-            try {
-              await orderApi.requestPayment(invoiceId);
-              if (onRefresh) await onRefresh();
-              onClose();
-              Alert.alert('Thành công', 'Đã chuyển trạng thái Đang Chờ Thanh Toán.');
-            } catch (err) {
-              Alert.alert('Lỗi', 'Không thể gửi yêu cầu thanh toán. Vui lòng thử lại sau.');
-            } finally {
-              setLoading(false);
-            }
-          }
-        }
-      ]
-    );
+  const confirmPayment = async () => {
+    const invoiceId = table.invoice?.idHoaDon;
+    setShowPaymentConfirm(false);
+    setLoading(true);
+    try {
+      await orderApi.requestPayment(invoiceId);
+      if (onRefresh) await onRefresh();
+      setPaymentSuccess(true);
+      setTimeout(() => {
+        setPaymentSuccess(false);
+        onClose();
+      }, 1500);
+    } catch (err) {
+      setPaymentError('Không thể gửi yêu cầu thanh toán. Vui lòng thử lại sau.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const ActionButton = ({ title, icon, onPress, bgColor, gradient, textColor, borderColor, isActive, containerStyle, horizontal, shadowColor }) => (
@@ -271,13 +263,13 @@ const OccupiedTableSheet = ({ table, tables, onClose, onUpdateGuest, onRefresh, 
               <ActionButton
                 title="Hủy phiếu" icon="⊗" gradient={['#FEF2F2', '#FEE2E2']} textColor="#B91C1C" borderColor="#FECACA" shadowColor="#F87171"
                 horizontal containerStyle={{ paddingHorizontal: 20, height: 55 }}
-                onPress={handleCancel}
+                onPress={handleCancelClick}
               />
               {/* Hành động lõi: Yêu cầu Thanh toán */}
               <ActionButton
                 title="Yêu cầu thanh toán" icon="💳" gradient={['#FDE68A', '#F59E0B']} textColor="#78350F" shadowColor="#D97706"
                 horizontal containerStyle={{ paddingHorizontal: 24, height: 55 }}
-                onPress={handleRequestPayment}
+                onPress={handleRequestPaymentClick}
               />
             </View>
           </View>
@@ -285,6 +277,98 @@ const OccupiedTableSheet = ({ table, tables, onClose, onUpdateGuest, onRefresh, 
           {loading && (
             <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.75)', justifyContent: 'center', alignItems: 'center', borderRadius: 24, zIndex: 100 }}>
               <ActivityIndicator size="large" color="#2E7D32" />
+            </View>
+          )}
+
+          {/* CUSTOM CANCEL CONFIRMATION MODAL OVERLAY */}
+          {showCancelConfirm && (
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 200, borderRadius: 24 }}>
+               <View style={{ backgroundColor: '#FFFFFF', width: isTablet ? 360 : '85%', borderRadius: 24, padding: 24, alignItems: 'center', shadowColor: '#E11D48', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 }}>
+                 <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#FEF2F2', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+                    <Text style={{ fontSize: 28 }}>⚠️</Text>
+                 </View>
+                 <Text style={{ fontSize: 20, fontWeight: '800', color: '#1E293B', marginBottom: 8 }}>Hủy phiếu đặt bàn</Text>
+                 <Text style={{ fontSize: 14, color: '#64748B', textAlign: 'center', marginBottom: 24, lineHeight: 20 }}>
+                   Bạn có chắc chắn muốn hủy phiếu đặt/mở bàn này không? Hành động này sẽ <Text style={{fontWeight: 'bold', color: '#E11D48'}}>không thể hoàn tác</Text>.
+                 </Text>
+                 <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+                    <Pressable 
+                      style={({pressed}) => [{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center', opacity: pressed ? 0.7 : 1 }]}
+                      onPress={() => setShowCancelConfirm(false)}
+                    >
+                       <Text style={{ color: '#475569', fontSize: 15, fontWeight: '700' }}>Bỏ qua</Text>
+                    </Pressable>
+                    <Pressable 
+                      style={({pressed}) => [{ flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center', opacity: pressed ? 0.8 : 1 }]}
+                      onPress={confirmCancel}
+                    >
+                      <LinearGradient colors={['#F43F5E', '#BE123C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 12 }} />
+                      <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '700' }}>Đồng ý Hủy</Text>
+                    </Pressable>
+                 </View>
+               </View>
+            </View>
+          )}
+
+          {/* CUSTOM PAYMENT CONFIRMATION MODAL OVERLAY */}
+          {showPaymentConfirm && (
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 200, borderRadius: 24 }}>
+               <View style={{ backgroundColor: '#FFFFFF', width: isTablet ? 360 : '85%', borderRadius: 24, padding: 24, alignItems: 'center', shadowColor: '#D97706', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 }}>
+                 <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#FFFBEB', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+                    <Text style={{ fontSize: 28 }}>💳</Text>
+                 </View>
+                 <Text style={{ fontSize: 20, fontWeight: '800', color: '#1E293B', marginBottom: 8 }}>Yêu cầu thanh toán</Text>
+                 <Text style={{ fontSize: 14, color: '#64748B', textAlign: 'center', marginBottom: 24, lineHeight: 20 }}>
+                   Bạn muốn gửi yêu cầu thanh toán cho hóa đơn này tới Thu Ngân?
+                 </Text>
+                 <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+                    <Pressable 
+                      style={({pressed}) => [{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center', opacity: pressed ? 0.7 : 1 }]}
+                      onPress={() => setShowPaymentConfirm(false)}
+                    >
+                       <Text style={{ color: '#475569', fontSize: 15, fontWeight: '700' }}>Bỏ qua</Text>
+                    </Pressable>
+                    <Pressable 
+                      style={({pressed}) => [{ flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center', opacity: pressed ? 0.8 : 1 }]}
+                      onPress={confirmPayment}
+                    >
+                      <LinearGradient colors={['#F59E0B', '#D97706']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 12 }} />
+                      <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '700' }}>Xác nhận</Text>
+                    </Pressable>
+                 </View>
+               </View>
+            </View>
+          )}
+
+          {/* PAYMENT SUCCESS OVERLAY */}
+          {paymentSuccess && (
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 210, borderRadius: 24 }}>
+               <View style={{ backgroundColor: '#FFFFFF', width: isTablet ? 360 : '85%', borderRadius: 24, padding: 32, alignItems: 'center', shadowColor: '#10B981', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.2, shadowRadius: 24, elevation: 10 }}>
+                  <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#D1FAE5', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
+                     <Text style={{ fontSize: 40 }}>✅</Text>
+                  </View>
+                  <Text style={{ fontSize: 22, fontWeight: '800', color: '#1E293B', marginBottom: 8 }}>Thành công!</Text>
+                  <Text style={{ fontSize: 15, color: '#64748B', textAlign: 'center' }}>Đã gửi yêu cầu thanh toán.</Text>
+               </View>
+            </View>
+          )}
+
+          {/* PAYMENT ERROR OVERLAY */}
+          {paymentError && (
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 210, borderRadius: 24 }}>
+               <View style={{ backgroundColor: '#FFFFFF', width: isTablet ? 360 : '85%', borderRadius: 24, padding: 32, alignItems: 'center' }}>
+                  <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
+                     <Text style={{ fontSize: 40 }}>❌</Text>
+                  </View>
+                  <Text style={{ fontSize: 22, fontWeight: '800', color: '#1E293B', marginBottom: 8 }}>Lỗi thanh toán</Text>
+                  <Text style={{ fontSize: 15, color: '#64748B', textAlign: 'center', marginBottom: 24 }}>{paymentError}</Text>
+                  <Pressable 
+                     style={({pressed}) => [{ width: '100%', paddingVertical: 14, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center', opacity: pressed ? 0.8 : 1 }]}
+                     onPress={() => setPaymentError(null)}
+                  >
+                    <Text style={{ color: '#475569', fontSize: 15, fontWeight: '700' }}>Đóng lại</Text>
+                  </Pressable>
+               </View>
             </View>
           )}
         </View>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import styles from './Sidebar.styles';
 
 const Sidebar = ({ 
@@ -52,11 +53,16 @@ const Sidebar = ({
       </Pressable>
 
       {/* 2. Main Navigation Card - This one should expand */}
-      <View style={[styles.tabletNavContainer, isCollapsed && styles.tabletNavContainerCollapsed]}>
+      <LinearGradient 
+        colors={['#8CE082', '#41A338']} 
+        start={{ x: 0, y: 0 }} 
+        end={{ x: 1, y: 1 }} 
+        style={[styles.tabletNavContainer, isCollapsed && styles.tabletNavContainerCollapsed]}
+      >
         {renderNavItem('TableMap', 'Trang chủ', '🏠')}
         {renderNavItem('OrderHistory', 'Lịch sử đơn hàng', '📋')}
         {renderNavItem('Settings', 'Cài đặt', '⚙️')}
-      </View>
+      </LinearGradient>
 
       {/* 3. Footer Profile Card */}
       <View style={[styles.sidebarFooter, isCollapsed && styles.sidebarFooterCollapsed]}>

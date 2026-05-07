@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native';
 const SidebarStyles = StyleSheet.create({
   tabletSidebar: {
     width: 280,
-    backgroundColor: '#F8FAFC', // Slightly cleaner background
+    backgroundColor: '#EEF5F0', // Nền xanh nhạt nhẹ
     paddingTop: 50, // More space for status bar
     paddingBottom: 24,
     paddingHorizontal: 16,
@@ -68,7 +68,6 @@ const SidebarStyles = StyleSheet.create({
   },
   tabletNavContainer: {
     flex: 1,
-    backgroundColor: '#34A853',
     borderRadius: 24,
     paddingVertical: 20,
     paddingHorizontal: 10,

@@ -192,6 +192,15 @@ const styles = StyleSheet.create({
     paddingLeft: 4,
     fontWeight: '500',
   },
+  eyeIconContainer: {
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  eyeIcon: {
+    fontSize: 20,
+    opacity: 0.7,
+  },
 });
 
 export default styles;

@@ -12,6 +12,7 @@ const Login = ({ onNavigate }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -26,8 +27,18 @@ const Login = ({ onNavigate }) => {
       const response = await authApi.login({ email, matKhau: password });
 
       if (response.success && response.token) {
+        const user = response.user;
+        
+        // Kiểm tra quyền: Chặn Thu ngân (Kiểm tra đa trường dữ liệu để đảm bảo chính xác)
+        const userRole = user.loaiNguoiDung || user.vaiTro || user.role || '';
+        if (userRole.toString().toUpperCase() === 'THU_NGAN') {
+          setErrorMessage('Tài khoản Thu ngân không có quyền truy cập ứng dụng này.');
+          setLoading(false);
+          return;
+        }
+
         await safeAsyncStorage.setItem('token', response.token);
-        await safeAsyncStorage.setItem('user', JSON.stringify(response.user));
+        await safeAsyncStorage.setItem('user', JSON.stringify(user));
 
         onNavigate && onNavigate('TableMap');
       } else {
@@ -96,7 +107,7 @@ const Login = ({ onNavigate }) => {
               <TextInput
                 style={styles.input}
                 placeholder="Mật khẩu"
-                secureTextEntry
+                secureTextEntry={!showPassword}
                 placeholderTextColor="#9CA3AF"
                 value={password}
                 onChangeText={(text) => {
@@ -104,6 +115,9 @@ const Login = ({ onNavigate }) => {
                   if (errorMessage) setErrorMessage('');
                 }}
               />
+              <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeIconContainer}>
+                <Text style={styles.eyeIcon}>{showPassword ? '👁️' : '🙈'}</Text>
+              </Pressable>
             </View>
 
             {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}

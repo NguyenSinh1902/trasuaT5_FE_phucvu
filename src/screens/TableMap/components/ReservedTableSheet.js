@@ -5,6 +5,7 @@ import reservationApi from '../../../api/reservationApi';
 
 const ReservedTableSheet = ({ table, onClose, onEdit, onRefresh, onOpenMenu }) => {
   const [loading, setLoading] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const { width } = useWindowDimensions();
   const isTablet = width >= 700;
 
@@ -32,33 +33,25 @@ const ReservedTableSheet = ({ table, onClose, onEdit, onRefresh, onOpenMenu }) =
     }
   };
 
-  const handleCancel = async () => {
+  const handleCancelClick = () => {
+    setShowCancelConfirm(true);
+  };
+
+  const confirmCancel = async () => {
+    setShowCancelConfirm(false);
     const resId = table.reservation?.idPhieuDat;
     if (!resId) return;
-
-    Alert.alert(
-      'Xác nhận',
-      'Bạn có chắc chắn muốn hủy đặt bàn này?',
-      [
-        { text: 'Bỏ qua', style: 'cancel' },
-        {
-          text: 'Đồng ý',
-          style: 'destructive',
-          onPress: async () => {
-            setLoading(true);
-            try {
-              await reservationApi.cancelReservation(resId);
-              if (onRefresh) await onRefresh();
-              onClose();
-            } catch (err) {
-              Alert.alert('Lỗi', 'Không thể hủy đặt bàn.');
-            } finally {
-              setLoading(false);
-            }
-          }
-        }
-      ]
-    );
+    
+    setLoading(true);
+    try {
+      await reservationApi.cancelReservation(resId);
+      if (onRefresh) await onRefresh();
+      onClose();
+    } catch (err) {
+      Alert.alert('Lỗi', 'Không thể hủy đặt bàn.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const ActionButton = ({ title, icon, onPress, bgColor, gradient, textColor, borderColor, containerStyle, horizontal, shadowColor }) => (
@@ -173,13 +166,43 @@ const ReservedTableSheet = ({ table, onClose, onEdit, onRefresh, onOpenMenu }) =
               <ActionButton 
                   title="Hủy đặt" icon="⊗" gradient={['#FEF2F2', '#FEE2E2']} textColor="#B91C1C" borderColor="#FECACA" shadowColor="#F87171"
                   horizontal containerStyle={{ flex: 1, height: 60 }} 
-                  onPress={handleCancel} 
+                  onPress={handleCancelClick} 
               />
           </View>
 
           {loading && (
             <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.75)', justifyContent: 'center', alignItems: 'center', borderRadius: 24, zIndex: 100 }}>
               <ActivityIndicator size="large" color="#D97706" />
+            </View>
+          )}
+
+          {/* CUSTOM CANCEL CONFIRMATION MODAL OVERLAY */}
+          {showCancelConfirm && (
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 200, borderRadius: 24 }}>
+               <View style={{ backgroundColor: '#FFFFFF', width: isTablet ? 360 : '85%', borderRadius: 24, padding: 24, alignItems: 'center', shadowColor: '#E11D48', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 }}>
+                 <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#FEF2F2', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+                    <Text style={{ fontSize: 28 }}>⚠️</Text>
+                 </View>
+                 <Text style={{ fontSize: 20, fontWeight: '800', color: '#1E293B', marginBottom: 8 }}>Hủy phiếu đặt bàn</Text>
+                 <Text style={{ fontSize: 14, color: '#64748B', textAlign: 'center', marginBottom: 24, lineHeight: 20 }}>
+                   Bạn có chắc chắn muốn hủy phiếu đặt bàn này không? Hành động này sẽ <Text style={{fontWeight: 'bold', color: '#E11D48'}}>không thể hoàn tác</Text>.
+                 </Text>
+                 <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+                    <Pressable 
+                      style={({pressed}) => [{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center', opacity: pressed ? 0.7 : 1 }]}
+                      onPress={() => setShowCancelConfirm(false)}
+                    >
+                       <Text style={{ color: '#475569', fontSize: 15, fontWeight: '700' }}>Bỏ qua</Text>
+                    </Pressable>
+                    <Pressable 
+                      style={({pressed}) => [{ flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center', opacity: pressed ? 0.8 : 1 }]}
+                      onPress={confirmCancel}
+                    >
+                      <LinearGradient colors={['#F43F5E', '#BE123C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 12 }} />
+                      <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '700' }}>Đồng ý Hủy</Text>
+                    </Pressable>
+                 </View>
+               </View>
             </View>
           )}
 
