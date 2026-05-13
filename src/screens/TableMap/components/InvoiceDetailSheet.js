@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, Pressable, ScrollView, ActivityIndicator, Alert, TextInput, useWindowDimensions } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import orderApi from '../../../api/orderApi';
+import productApi from '../../../api/productApi';
 
 const ICE_LEVELS = ['Không đá', 'Ít đá', 'Mặc định', 'Nhiều đá'];
 const SUGAR_LEVELS = ['0%', '50%', '70%', '100%'];
@@ -39,6 +40,38 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
 
   const { width } = useWindowDimensions();
   const isTablet = width >= 700;
+
+  const [toppings, setToppings] = useState([]);
+  const [selectedToppings, setSelectedToppings] = useState([]);
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
+  const [productVariants, setProductVariants] = useState([]);
+  const [selectedVariantId, setSelectedVariantId] = useState(null);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({ visible: false, title: '', message: '', onConfirm: null });
+
+  const showConfirm = (title, message, onConfirm) => {
+    setConfirmModal({ visible: true, title, message, onConfirm });
+  };
+
+  const showToast = (message, type = 'success') => {
+    setToast({ visible: true, message, type });
+    setTimeout(() => setToast({ visible: false, message: '', type: 'success' }), 2000);
+  };
+
+  useEffect(() => {
+    fetchToppings();
+  }, []);
+
+  const fetchToppings = async () => {
+    try {
+      const res = await productApi.getToppings();
+      const toppingsData = Array.isArray(res) ? res : (res.data || []);
+      setToppings(toppingsData);
+    } catch (err) {
+      console.error('Failed to fetch toppings:', err);
+    }
+  };
 
   useEffect(() => {
     if (table) fetchInvoice();
@@ -86,15 +119,42 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
     }
   };
 
-  const handleOpenEdit = (item) => {
+  const handleOpenEdit = async (item) => {
     setSelectedItem(item);
+    setSelectedVariantId(item.idBienThe);
     try {
       const opts = JSON.parse(item.tuyChonJson || '{}');
-      setSelectedIce(opts.da || 'Mặc định');
+      
+      const mappedIce = opts.da === 'it' ? 'Ít đá' : 
+                        (opts.da === 'khong' ? 'Không đá' : 
+                        (opts.da === 'nhieu' ? 'Nhiều đá' : 
+                        (opts.da || 'Mặc định')));
+                        
+      setSelectedIce(mappedIce);
       setSelectedSugar(opts.duong || '50%');
       setSelectedNote(opts.luuY || '');
+      
+      const currentToppingsIds = item.danhSachTopping?.map(dt => {
+        const t = toppings.find(top => top.tenSanPham === dt.tenTopping);
+        return t?.idSanPham;
+      }).filter(Boolean) || [];
+      setSelectedToppings(currentToppingsIds);
+
+      const productsRes = await productApi.getAll();
+      const products = Array.isArray(productsRes) ? productsRes : (productsRes.data || []);
+      const currentProduct = products.find(p => 
+        p.danhSachBienThe?.some(v => v.idBienThe === item.idBienThe)
+      );
+
+      if (currentProduct) {
+        setProductVariants(currentProduct.danhSachBienThe || []);
+      } else {
+        setProductVariants([]);
+      }
     } catch (e) {
       setSelectedIce('Mặc định'); setSelectedSugar('50%'); setSelectedNote('');
+      setSelectedToppings([]);
+      setProductVariants([]);
     }
     setIsEditModalVisible(true);
   };
@@ -105,15 +165,24 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
     try {
       const newOpts = { da: selectedIce, duong: selectedSugar, luuY: selectedNote };
       const itemId = selectedItem.idChiTiet || selectedItem.idChiTietHoaDon;
+      
+      const danhSachIdTopping = selectedToppings.map(id => {
+        const t = toppings.find(item => item.idSanPham === id);
+        return t?.danhSachBienThe?.[0]?.idBienThe;
+      }).filter(Boolean);
+
       await orderApi.editItemInInvoice(invoice.idHoaDon, itemId, {
+        idBienThe: selectedVariantId,
         soLuong: selectedItem.soLuong,
-        tuyChonJson: JSON.stringify(newOpts)
+        tuyChonJson: JSON.stringify(newOpts),
+        danhSachIdTopping: danhSachIdTopping
       });
       await fetchInvoice();
       if (onRefresh) onRefresh();
       setIsEditModalVisible(false);
     } catch (err) {
-      Alert.alert('Lỗi', 'Không thể cập nhật món ăn.');
+      const errMsg = err.response?.data?.message || err.message || 'Không thể cập nhật món ăn.';
+      showToast(errMsg, 'error');
     } finally {
       setEditing(false);
     }
@@ -125,67 +194,65 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
     setLoading(true);
     try {
       const itemId = item.idChiTiet || item.idChiTietHoaDon;
-      await orderApi.editItemInInvoice(invoice.idHoaDon, itemId, { soLuong: newQty, tuyChonJson: item.tuyChonJson });
+      
+      const danhSachIdTopping = item.danhSachTopping?.map(dt => {
+        const t = toppings.find(top => top.tenSanPham === dt.tenTopping);
+        return t?.danhSachBienThe?.[0]?.idBienThe;
+      }).filter(Boolean) || [];
+
+      await orderApi.editItemInInvoice(invoice.idHoaDon, itemId, {
+        idBienThe: item.idBienThe,
+        soLuong: newQty,
+        tuyChonJson: item.tuyChonJson,
+        danhSachIdTopping: danhSachIdTopping
+      });
       await fetchInvoice();
       if (onRefresh) onRefresh();
     } catch (err) {
-      Alert.alert('Lỗi', 'Không thể cập nhật số lượng.');
+      showToast('Không thể cập nhật số lượng.', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteItem = (item) => {
-    Alert.alert('Xóa món', `Xóa ${item.tenSanPham}?`, [
-      { text: 'Hủy' },
-      { text: 'Xóa', style: 'destructive', onPress: async () => {
-        setLoading(true);
-        try {
-          const itemId = item.idChiTiet || item.idChiTietHoaDon;
-          await orderApi.deleteItemFromInvoice(invoice.idHoaDon, itemId);
-          await fetchInvoice();
-          if (onRefresh) onRefresh();
-        } catch (err) { Alert.alert('Lỗi', 'Không thể xóa.'); }
-        finally { setLoading(false); }
-      }}
-    ]);
+    setItemToDelete(item);
+    setDeleteConfirmVisible(true);
   };
 
   const handleRequestPayment = async () => {
     if (!invoice?.idHoaDon) return;
-    Alert.alert('Thanh toán', 'Gửi yêu cầu thanh toán?', [
-      { text: 'Bỏ qua' },
-      { text: 'Xác nhận', onPress: async () => {
-        setLoading(true);
-        try {
-          await orderApi.requestPayment(invoice.idHoaDon);
-          await fetchInvoice();
-          if (onRefresh) onRefresh();
-          Alert.alert('Thành công', 'Đã gửi yêu cầu.');
-        } catch (err) { Alert.alert('Lỗi', 'Không thể gửi yêu cầu.'); }
-        finally { setLoading(false); }
-      }}
-    ]);
+    showConfirm('Thanh toán', 'Gửi yêu cầu thanh toán?', async () => {
+      setLoading(true);
+      try {
+        await orderApi.requestPayment(invoice.idHoaDon);
+        await fetchInvoice();
+        if (onRefresh) onRefresh();
+        showToast('Đã gửi yêu cầu thanh toán thành công.', 'success');
+      } catch (err) { 
+        const errMsg = err.response?.data?.message || err.message || 'Không thể gửi yêu cầu.';
+        showToast(errMsg, 'error'); 
+      }
+      finally { setLoading(false); }
+    });
   };
 
   const handleCancelInvoice = async () => {
     if (!invoice?.idHoaDon) return;
-    Alert.alert('Hủy hóa đơn', 'Bạn có chắc chắn muốn hủy toàn bộ hóa đơn này không? Hành động này không thể hoàn tác.', [
-      { text: 'Bỏ qua' },
-      { text: 'Xác nhận hủy', style: 'destructive', onPress: async () => {
-        setLoading(true);
-        try {
-          await orderApi.cancelOrder(invoice.idHoaDon);
-          if (onRefresh) onRefresh();
-          onClose();
-          Alert.alert('Thành công', 'Đã hủy hóa đơn.');
-        } catch (err) { 
-          Alert.alert('Lỗi', 'Không thể hủy hóa đơn.'); 
-        } finally { 
-          setLoading(false); 
-        }
-      }}
-    ]);
+    showConfirm('Hủy hóa đơn', 'Bạn có chắc chắn muốn hủy toàn bộ hóa đơn này không? Hành động này không thể hoàn tác.', async () => {
+      setLoading(true);
+      try {
+        await orderApi.cancelOrder(invoice.idHoaDon);
+        if (onRefresh) onRefresh();
+        onClose();
+        showToast('Đã hủy hóa đơn thành công.', 'success');
+      } catch (err) { 
+        const errMsg = err.response?.data?.message || err.message || 'Không thể hủy hóa đơn.';
+        showToast(errMsg, 'error'); 
+      } finally { 
+        setLoading(false); 
+      }
+    });
   };
 
   if (!table) return null;
@@ -194,6 +261,12 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
     <Modal visible={!!table} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.65)', justifyContent: 'center', alignItems: 'center' }}>
         <Pressable style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 }} onPress={onClose} />
+        
+        {toast.visible && (
+          <View style={{ position: 'absolute', top: 40, alignSelf: 'center', backgroundColor: toast.type === 'error' ? '#FEE2E2' : '#D1FAE5', paddingVertical: 10, paddingHorizontal: 24, borderRadius: 20, alignItems: 'center', zIndex: 100, borderWidth: 1, borderColor: toast.type === 'error' ? '#EF4444' : '#10B981', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 5 }}>
+            <Text style={{ color: toast.type === 'error' ? '#B91C1C' : '#047857', fontWeight: '700' }}>{toast.message}</Text>
+          </View>
+        )}
         
         <View style={{ 
           width: isTablet ? '65%' : '92%', 
@@ -209,6 +282,8 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
             <LinearGradient colors={['rgba(16, 185, 129, 0.12)', 'transparent']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', top: -100, left: -100, width: 350, height: 350, borderRadius: 175 }} />
             <LinearGradient colors={['rgba(245, 158, 11, 0.1)', 'transparent']} start={{ x: 1, y: 1 }} end={{ x: 0, y: 0 }} style={{ position: 'absolute', bottom: -100, right: -100, width: 400, height: 400, borderRadius: 200 }} />
           </View>
+
+
 
           <Pressable style={{ position: 'absolute', top: 16, right: 16, width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', zIndex: 10 }} onPress={onClose}>
             <Text style={{ fontSize: 18, color: '#64748B', fontWeight: 'bold' }}>✕</Text>
@@ -226,7 +301,7 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
           {loading && !invoice ? <ActivityIndicator size="large" color="#10B981" style={{ marginTop: 40 }} /> : invoice ? (
             <ScrollView showsVerticalScrollIndicator={false} style={{ flexShrink: 1 }}>
               <View style={{ backgroundColor: '#F8FAFC', borderRadius: 16, padding: 16, marginBottom: 24, borderWidth: 1, borderColor: '#E2E8F0' }}>
-                {invoice.danhSachChiTiet?.map((item, index) => (
+                {invoice.danhSachChiTiet?.slice().sort((a, b) => (a.idChiTiet || 0) - (b.idChiTiet || 0)).map((item, index) => (
                   <View key={item.idChiTiet || index} style={{ marginBottom: index === invoice.danhSachChiTiet.length - 1 ? 0 : 16, borderBottomWidth: index === invoice.danhSachChiTiet.length-1?0:1, borderBottomColor: '#F1F5F9', paddingBottom: index === invoice.danhSachChiTiet.length - 1 ? 0 : 16 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <View style={{ flex: 1, paddingRight: 12 }}>
@@ -235,12 +310,12 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
                           <Pressable onPress={() => handleOpenEdit(item)} style={{ padding: 4, backgroundColor: '#E2E8F0', borderRadius: 6 }}><Text style={{fontSize: 12}}>✏️ Sửa</Text></Pressable>
                         </View>
                         
-                        {(item.tuyChonJson) && (
-                           <Text style={{ color: '#64748B', fontSize: 13, marginTop: 4 }}>
-                             {JSON.parse(item.tuyChonJson || '{}').da || 'Mặc định'} đá - {JSON.parse(item.tuyChonJson || '{}').duong || '50%'} đường
-                             {JSON.parse(item.tuyChonJson || '{}').luuY ? ` • ${JSON.parse(item.tuyChonJson || '{}').luuY}` : ''}
-                           </Text>
-                        )}
+                        <Text style={{ color: '#64748B', fontSize: 13, marginTop: 4 }}>
+                          {item.tenKichCo || item.variant?.tenKichCo || 'Size M'}
+                          {item.tuyChonJson ? `, ${JSON.parse(item.tuyChonJson).da || 'Mặc định'} đá - ${JSON.parse(item.tuyChonJson).duong || '50%'} đường` : ''}
+                          {item.danhSachTopping?.length > 0 && `\n+ ${item.danhSachTopping.map(t => t.tenSanPham || t.tenTopping).join(', ')}`}
+                          {item.tuyChonJson && JSON.parse(item.tuyChonJson).luuY ? ` • ${JSON.parse(item.tuyChonJson).luuY}` : ''}
+                        </Text>
                         
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, backgroundColor: '#FFFFFF', alignSelf: 'flex-start', borderRadius: 8, padding: 4, shadowColor: '#000', shadowOffset:{width:0, height:1}, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 }}>
                           <Pressable onPress={() => updateItemQuantity(item, -1)} style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#475569', fontWeight: 'bold' }}>−</Text></Pressable>
@@ -262,7 +337,23 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
               {/* TỔNG KẾT HÓA ĐƠN */}
               <View style={{ backgroundColor: '#F8FAFC', borderRadius: 16, padding: 20, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 24 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}><Text style={{ color: '#64748B', fontSize: 15 }}>Tạm tính</Text><Text style={{ color: '#1E293B', fontSize: 15, fontWeight: '600' }}>{invoice.tongTienHang?.toLocaleString()}đ</Text></View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}><Text style={{ color: '#64748B', fontSize: 15 }}>Thuế & Phí</Text><Text style={{ color: '#1E293B', fontSize: 15, fontWeight: '600' }}>{invoice.tongTienThue?.toLocaleString()}đ</Text></View>
+                {invoice.danhSachThuePhi && invoice.danhSachThuePhi.length > 0 ? (
+                  invoice.danhSachThuePhi.map((tp, idx) => (
+                    <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <Text style={{ color: '#64748B', fontSize: 15 }}>
+                        {tp.tenThuePhi} {tp.loaiGiaTri === 'PHAN_TRAM' ? `- ${tp.giaTriTaiThoiDiemBan}%` : ''}
+                      </Text>
+                      <Text style={{ color: '#1E293B', fontSize: 15, fontWeight: '600' }}>
+                        {tp.soTienQuyDoi?.toLocaleString()}đ
+                      </Text>
+                    </View>
+                  ))
+                ) : (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <Text style={{ color: '#64748B', fontSize: 15 }}>Thuế & Phí</Text>
+                    <Text style={{ color: '#1E293B', fontSize: 15, fontWeight: '600' }}>{invoice.tongTienThue?.toLocaleString() || 0}đ</Text>
+                  </View>
+                )}
                 
                 <View style={{ height: 1, backgroundColor: '#E2E8F0', marginBottom: 16, width: '100%' }} />
 
@@ -311,9 +402,27 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
           {/* Edit Customization Modal */}
           <Modal visible={isEditModalVisible} transparent animationType="fade">
             <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.75)', justifyContent: 'center', alignItems: 'center' }}>
+              
+              {toast.visible && (
+                <View style={{ position: 'absolute', top: 40, alignSelf: 'center', backgroundColor: toast.type === 'error' ? '#FEE2E2' : '#D1FAE5', paddingVertical: 10, paddingHorizontal: 24, borderRadius: 20, alignItems: 'center', zIndex: 100, borderWidth: 1, borderColor: toast.type === 'error' ? '#EF4444' : '#10B981', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 5 }}>
+                  <Text style={{ color: toast.type === 'error' ? '#B91C1C' : '#047857', fontWeight: '700' }}>{toast.message}</Text>
+                </View>
+              )}
               <View style={{ width: isTablet ? '45%' : '90%', backgroundColor: '#FFFFFF', padding: 24, borderRadius: 24, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 }}>
                 <Text style={{ color: '#1E293B', fontSize: 20, fontWeight: '800', marginBottom: 24 }}>Tùy chỉnh: {selectedItem?.tenSanPham}</Text>
                 
+                <Text style={{ color: '#475569', fontWeight: '700', marginBottom: 12 }}>Size:</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
+                  {productVariants.map(v => {
+                    const isActive = selectedVariantId === v.idBienThe;
+                    return (
+                      <Pressable key={v.idBienThe} onPress={() => setSelectedVariantId(v.idBienThe)} style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, backgroundColor: isActive ? '#D1FAE5' : '#F1F5F9', borderWidth: 1, borderColor: isActive ? '#10B981' : '#E2E8F0' }}>
+                        <Text style={{ color: isActive ? '#047857' : '#64748B', fontWeight: '700' }}>{v.tenKichCo}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
                 <Text style={{ color: '#475569', fontWeight: '700', marginBottom: 12 }}>Đá:</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
                   {ICE_LEVELS.map(level => (
@@ -332,6 +441,31 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
                   ))}
                 </View>
 
+                <Text style={{ color: '#475569', fontWeight: '700', marginBottom: 12 }}>Toppings:</Text>
+                <View style={{ backgroundColor: '#F8FAFC', borderRadius: 12, padding: 8, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 24, maxHeight: 150 }}>
+                  <ScrollView nestedScrollEnabled={true}>
+                    {toppings.map((t, idx) => {
+                      const isActive = selectedToppings.includes(t.idSanPham);
+                      const toppingPrice = t.danhSachBienThe?.[0]?.giaBan || 0;
+                      return (
+                        <Pressable key={t.idSanPham} style={{ flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: idx === toppings.length - 1 ? 0 : 1, borderBottomColor: '#F1F5F9', backgroundColor: isActive ? '#F0FDF4' : 'transparent' }} onPress={() => {
+                          setSelectedToppings(prev =>
+                            prev.includes(t.idSanPham) ? prev.filter(id => id !== t.idSanPham) : [...prev, t.idSanPham]
+                          );
+                        }}>
+                          <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: isActive ? '#10B981' : '#CBD5E1', backgroundColor: isActive ? '#10B981' : 'transparent', marginRight: 12, alignItems: 'center', justifyContent: 'center' }}>
+                            {isActive && <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>✓</Text>}
+                          </View>
+                          <Text style={{ flex: 1, fontSize: 15, color: '#1E293B', fontWeight: isActive ? '700' : '500' }}>{t.tenSanPham}</Text>
+                          <Text style={{ fontSize: 14, fontWeight: '700', color: isActive ? '#059669' : '#94A3B8' }}>
+                            +{new Intl.NumberFormat('vi-VN').format(toppingPrice)}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+
                 <TextInput 
                   style={{ backgroundColor: '#F8FAFC', color: '#1E293B', padding: 16, borderRadius: 12, marginBottom: 24, borderWidth: 1, borderColor: '#E2E8F0', height: 80, textAlignVertical: 'top' }} 
                   placeholder="Ghi chú (Ví dụ: Ít ngọt, không béo...)" placeholderTextColor="#94A3B8" multiline
@@ -341,6 +475,57 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
                 <View style={{ flexDirection: 'row', gap: 16 }}>
                   <ActionButton title="Hủy bỏ" bgColor="#F1F5F9" textColor="#475569" borderColor="#E2E8F0" containerStyle={{ flex: 1, height: 50 }} onPress={() => setIsEditModalVisible(false)} />
                   <ActionButton title="Lưu lại" gradient={['#34D399', '#059669']} textColor="#FFFFFF" shadowColor="#047857" containerStyle={{ flex: 1, height: 50 }} onPress={handleSaveEdit} disabled={editing} />
+                </View>
+              </View>
+            </View>
+          </Modal>
+
+          {/* Custom Delete Confirmation Modal */}
+          <Modal visible={deleteConfirmVisible} transparent animationType="fade">
+            <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.75)', justifyContent: 'center', alignItems: 'center' }}>
+              <View style={{ width: isTablet ? '35%' : '80%', backgroundColor: '#FFFFFF', padding: 24, borderRadius: 24, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 }}>
+                <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+                  <Text style={{ fontSize: 30 }}>🗑️</Text>
+                </View>
+                <Text style={{ color: '#1E293B', fontSize: 20, fontWeight: '800', marginBottom: 8 }}>Xóa món ăn</Text>
+                <Text style={{ color: '#64748B', fontSize: 16, textAlign: 'center', marginBottom: 24 }}>Bạn có chắc chắn muốn xóa <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>{itemToDelete?.tenSanPham}</Text> khỏi hóa đơn không?</Text>
+                
+                <View style={{ flexDirection: 'row', gap: 16, width: '100%' }}>
+                  <ActionButton title="Hủy bỏ" bgColor="#F1F5F9" textColor="#475569" borderColor="#E2E8F0" containerStyle={{ flex: 1, height: 50 }} onPress={() => setDeleteConfirmVisible(false)} />
+                  <ActionButton title="Xác nhận xóa" bgColor="#FFF1F2" textColor="#E11D48" borderColor="#FDA4AF" containerStyle={{ flex: 1.5, height: 50 }} onPress={async () => {
+                    setDeleteConfirmVisible(false);
+                    setLoading(true);
+                    try {
+                      const itemId = itemToDelete.idChiTiet || itemToDelete.idChiTietHoaDon;
+                      await orderApi.deleteItemFromInvoice(invoice.idHoaDon, itemId);
+                      await fetchInvoice();
+                      if (onRefresh) onRefresh();
+                      showToast('Đã xóa món ăn.', 'success');
+                    } catch (err) { 
+                      showToast('Không thể xóa món ăn.', 'error'); 
+                    } finally { 
+                      setLoading(false); 
+                    }
+                  }} />
+                </View>
+              </View>
+            </View>
+          </Modal>
+
+          {/* Generic Confirmation Modal */}
+          <Modal visible={confirmModal.visible} transparent animationType="fade">
+            <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.75)', justifyContent: 'center', alignItems: 'center' }}>
+              <View style={{ width: isTablet ? '35%' : '80%', backgroundColor: '#FFFFFF', padding: 24, borderRadius: 24, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 }}>
+                <Text style={{ color: '#1E293B', fontSize: 20, fontWeight: '800', marginBottom: 8 }}>{confirmModal.title}</Text>
+                <Text style={{ color: '#64748B', fontSize: 16, textAlign: 'center', marginBottom: 24 }}>{confirmModal.message}</Text>
+                
+                <View style={{ flexDirection: 'row', gap: 16, width: '100%' }}>
+                  <ActionButton title="Hủy bỏ" bgColor="#F1F5F9" textColor="#475569" borderColor="#E2E8F0" containerStyle={{ flex: 1, height: 50 }} onPress={() => setConfirmModal({ visible: false, title: '', message: '', onConfirm: null })} />
+                  <ActionButton title="Xác nhận" gradient={['#34D399', '#059669']} textColor="#FFFFFF" shadowColor="#047857" containerStyle={{ flex: 1.5, height: 50 }} onPress={async () => {
+                    const onConfirm = confirmModal.onConfirm;
+                    setConfirmModal({ visible: false, title: '', message: '', onConfirm: null });
+                    if (onConfirm) await onConfirm();
+                  }} />
                 </View>
               </View>
             </View>

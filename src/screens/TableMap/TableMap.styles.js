@@ -825,9 +825,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   newCardTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '700',
     color: '#111827',
+    flexShrink: 1,
   },
   newCardStatusTag: {
     flexDirection: 'row',

@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
   formWrapper: {
     width: '100%',
     maxWidth: 400,
-    backgroundColor: 'rgba(0, 0, 0, 0.03)', // Kính mờ hơi đen
+    backgroundColor: 'rgba(0, 0, 0, 0.03)', 
     padding: 32,
     borderRadius: 24,
     borderWidth: 1,
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.textSub,
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: 40,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1.5,
     borderColor: '#D1FAE5',
-    marginBottom: 16,
+    marginBottom: 20,
     height: 56,
     paddingHorizontal: 16,
   },
@@ -175,10 +175,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 24,
   },
-  switchText1: {
-    color: COLORS.textSub,
-    fontSize: 15,
-  },
   switchText2: {
     color: COLORS.gold,
     fontSize: 15,
@@ -187,10 +183,45 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#EF4444',
     fontSize: 13,
-    marginTop: -8,
+    marginTop: -12,
     marginBottom: 15,
     paddingLeft: 4,
     fontWeight: '500',
+  },
+  toastWrapper: {
+    position: 'absolute',
+    top: 40,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  toastContainer: {
+    maxWidth: '80%',
+    borderRadius: 30,
+    overflow: 'hidden',
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 15,
+    elevation: 5,
+  },
+  toastGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+  },
+  toastIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  toastText: {
+    color: '#166534',
+    fontSize: 15,
+    fontWeight: '700',
   },
   eyeIconContainer: {
     padding: 8,

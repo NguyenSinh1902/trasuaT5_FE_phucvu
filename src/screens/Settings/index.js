@@ -4,15 +4,17 @@ import styles from './Settings.styles';
 import Sidebar from '../../components/Sidebar';
 import safeAsyncStorage from '../../utils/storage';
 import staffApi from '../../api/staffApi';
+import UserProfileModal from '../TableMap/components/UserProfileModal';
 
 const Settings = ({ onNavigate }) => {
   const { width } = useWindowDimensions();
   const isTablet = width >= 700;
 
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
   const [currentUser, setCurrentUser] = useState(null);
   const [notifications, setNotifications] = useState(true);
   const [biometrics, setBiometrics] = useState(false);
+
 
   useEffect(() => {
     loadUserData();
@@ -72,16 +74,7 @@ const Settings = ({ onNavigate }) => {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
       
-      {isTablet && (
-        <Sidebar 
-          activeRoute="Settings"
-          onNavigate={onNavigate}
-          currentUser={currentUser}
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          onShowProfile={() => {}}
-        />
-      )}
+
 
       <ScrollView style={styles.mainContent} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
@@ -127,6 +120,8 @@ const Settings = ({ onNavigate }) => {
 
         <Text style={styles.versionText}>Phiên bản 1.0.2 (Build 2026.05.07)</Text>
       </ScrollView>
+
+
     </View>
   );
 };

@@ -155,9 +155,6 @@ const InvoiceHistoryModal = ({ isVisible, invoiceId, onClose }) => {
           ) : null}
           
           <View style={styles.footer}>
-            <Pressable style={styles.printBtn}>
-               <Text style={styles.printBtnText}>🖨️ In lại hóa đơn</Text>
-            </Pressable>
             <Pressable style={styles.okBtn} onPress={onClose}>
                <Text style={styles.okBtnText}>Đóng</Text>
             </Pressable>

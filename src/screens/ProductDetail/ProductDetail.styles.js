@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#F1F8E9',
-    marginBottom: 24,
+    marginBottom: 12,
     // Soft floating shadow
     shadowColor: '#8BA367',
     shadowOffset: { width: 0, height: 4 },

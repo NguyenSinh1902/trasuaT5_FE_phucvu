@@ -13,18 +13,22 @@ const Register = ({ onNavigate }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleRegister = async () => {
     if (!name || !email || !phone || !password || !confirmPassword) {
-      Alert.alert('Thông báo', 'Vui lòng điền đầy đủ các thông tin');
+      setErrorMessage('Vui lòng điền đầy đủ các thông tin');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Lỗi', 'Mật khẩu xác nhận không khớp');
+      setErrorMessage('Mật khẩu xác nhận không khớp');
       return;
     }
 
+    setErrorMessage('');
     setLoading(true);
     try {
       const response = await authApi.register({
@@ -39,10 +43,10 @@ const Register = ({ onNavigate }) => {
         Alert.alert('Thành công', 'Đăng ký thành công! Vui lòng kiểm tra mã OTP trong email.');
         onNavigate && onNavigate('VerifyOTP', { email });
       } else {
-        Alert.alert('Lỗi đăng ký', response.message || 'Không thể tạo tài khoản');
+        setErrorMessage(response.message || 'Không thể tạo tài khoản');
       }
     } catch (error) {
-      Alert.alert('Lỗi đăng ký', error.message || 'Kết nối thất bại');
+      setErrorMessage(error.message || 'Kết nối thất bại');
     } finally {
       setLoading(false);
     }
@@ -82,65 +86,88 @@ const Register = ({ onNavigate }) => {
             <Text style={styles.headerText}>Tạo Tài Khoản</Text>
             <Text style={styles.subHeaderText}>Đăng ký thông minh - Nâng tầm dịch vụ</Text>
 
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, errorMessage ? { borderColor: '#FCA5A5' } : null]}>
               <Text style={styles.icon}>🏷️</Text>
               <TextInput 
                 style={styles.input} 
                 placeholder="Họ và tên" 
                 placeholderTextColor="#9CA3AF"
                 value={name}
-                onChangeText={setName}
+                onChangeText={(text) => {
+                  setName(text);
+                  if (errorMessage) setErrorMessage('');
+                }}
               />
             </View>
 
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, errorMessage ? { borderColor: '#FCA5A5' } : null]}>
               <Text style={styles.icon}>✉️</Text>
               <TextInput 
                 style={styles.input} 
                 placeholder="Email của bạn" 
                 placeholderTextColor="#9CA3AF"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  if (errorMessage) setErrorMessage('');
+                }}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
             </View>
 
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, errorMessage ? { borderColor: '#FCA5A5' } : null]}>
               <Text style={styles.icon}>📞</Text>
               <TextInput 
                 style={styles.input} 
                 placeholder="Số điện thoại" 
                 placeholderTextColor="#9CA3AF"
                 value={phone}
-                onChangeText={setPhone}
+                onChangeText={(text) => {
+                  setPhone(text);
+                  if (errorMessage) setErrorMessage('');
+                }}
                 keyboardType="phone-pad"
               />
             </View>
 
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, errorMessage ? { borderColor: '#FCA5A5' } : null]}>
               <Text style={styles.icon}>🔒</Text>
               <TextInput 
                 style={styles.input} 
                 placeholder="Mật khẩu" 
-                secureTextEntry 
+                secureTextEntry={!showPassword} 
                 placeholderTextColor="#9CA3AF"
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (errorMessage) setErrorMessage('');
+                }}
               />
+              <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeIconContainer}>
+                <Text style={styles.eyeIcon}>{showPassword ? '👁️' : '🙈'}</Text>
+              </Pressable>
             </View>
 
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, errorMessage ? { borderColor: '#FCA5A5' } : null]}>
               <Text style={styles.icon}>🔑</Text>
               <TextInput 
                 style={styles.input} 
                 placeholder="Xác nhận mật khẩu" 
-                secureTextEntry 
+                secureTextEntry={!showConfirmPassword} 
                 placeholderTextColor="#9CA3AF"
                 value={confirmPassword}
-                onChangeText={setConfirmPassword}
+                onChangeText={(text) => {
+                  setConfirmPassword(text);
+                  if (errorMessage) setErrorMessage('');
+                }}
               />
+              <Pressable onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIconContainer}>
+                <Text style={styles.eyeIcon}>{showConfirmPassword ? '👁️' : '🙈'}</Text>
+              </Pressable>
             </View>
+
+            {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
 
             <Pressable 
               style={[styles.submitBtnWrapper, loading && { opacity: 0.7 }]} 

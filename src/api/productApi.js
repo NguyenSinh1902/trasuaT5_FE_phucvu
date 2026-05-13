@@ -19,6 +19,9 @@ const productApi = {
   getById: (id) => {
     return axiosClient.get(`/san-pham/${id}`);
   },
+  getSuggestions: (id) => {
+    return axiosClient.get(`/goi-y/instant/${id}`);
+  },
 };
 
 export default productApi;

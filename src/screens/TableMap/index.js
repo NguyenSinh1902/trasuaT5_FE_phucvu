@@ -6,8 +6,10 @@ import tableApi from '../../api/tableApi';
 import orderApi from '../../api/orderApi';
 import reservationApi from '../../api/reservationApi';
 import staffApi from '../../api/staffApi';
+import promotionApi from '../../api/promotionApi';
 import safeAsyncStorage from '../../utils/storage';
 import Sidebar from '../../components/Sidebar';
+import Svg, { Path } from 'react-native-svg';
 
 // Sheet components
 import EmptyTableSheet from './components/EmptyTableSheet';
@@ -40,7 +42,7 @@ const TableMap = ({ onNavigate }) => {
   const [refreshing, setRefreshing] = useState(false);
 
   // Tablet States
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [showStats, setShowStats] = useState(false);
   const [showPromo, setShowPromo] = useState(false);
@@ -55,7 +57,7 @@ const TableMap = ({ onNavigate }) => {
   const [updateGuestTable, setUpdateGuestTable] = useState(null);
   const [invoiceTable, setInvoiceTable] = useState(null);
   const [editReserveTable, setEditReserveTable] = useState(null);
-  const [showProfile, setShowProfile] = useState(false);
+
   const firebaseListenerRef = useRef(null);
   const ordersListenerRef = useRef(null);
   const isInitialLoad = useRef(true);
@@ -64,6 +66,20 @@ const TableMap = ({ onNavigate }) => {
 
   // Toast state
   const [activeToast, setActiveToast] = useState(null);
+  const [promotions, setPromotions] = useState([]);
+  const [loadingPromo, setLoadingPromo] = useState(false);
+
+  const fetchPromotions = async () => {
+    setLoadingPromo(true);
+    try {
+      const res = await promotionApi.getActive();
+      setPromotions(res.data || res);
+    } catch (err) {
+      console.error('Fetch promotions error:', err);
+    } finally {
+      setLoadingPromo(false);
+    }
+  };
 
   // Đồng hồ thời gian thực - cập nhật mỗi giây
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -308,16 +324,7 @@ const TableMap = ({ onNavigate }) => {
   // ========== RENDER BLOCKS ================================
   // =========================================================
 
-  const renderTabletSidebar = () => (
-    <Sidebar
-      activeRoute="TableMap"
-      onNavigate={onNavigate}
-      currentUser={currentUser}
-      isCollapsed={isSidebarCollapsed}
-      onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-      onShowProfile={() => setShowProfile(true)}
-    />
-  );
+
 
   const renderTabletTopHeader = () => (
     <View style={styles.topHeader}>
@@ -374,7 +381,9 @@ const TableMap = ({ onNavigate }) => {
           />
         </View>
         <Pressable style={styles.filterBtn} onPress={() => setShowFilterModal(true)}>
-          <Text style={styles.filterBtnIcon}>⌥</Text>
+          <Svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <Path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" stroke="#64748B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </Svg>
         </Pressable>
         <Pressable style={styles.filterBtn} onPress={() => setShowNotiModal(true)}>
           <Text style={styles.filterBtnIcon}>🔔</Text>
@@ -451,7 +460,7 @@ const TableMap = ({ onNavigate }) => {
         <View style={{ flex: 1, justifyContent: 'space-between' }}>
           {/* Row 1: Tên bàn + Tag trạng thái đơn */}
           <View style={styles.newCardTopRow}>
-            <Text style={styles.newCardTitle} numberOfLines={1}>{t.tenBan}</Text>
+            <Text style={styles.newCardTitle} numberOfLines={1} adjustsFontSizeToFit>{t.tenBan}</Text>
             {orderStatus ? (
               <View style={[styles.newCardStatusTag, { backgroundColor: orderStatus.bg }]}>
                 <View style={[styles.newCardStatusDot, { backgroundColor: orderStatus.color }]} />
@@ -605,7 +614,12 @@ const TableMap = ({ onNavigate }) => {
         </Pressable>
       )}
       {/* Khuyến mãi - nút trên */}
-      <Pressable onPress={() => { setShowPromo(!showPromo); setShowStats(false); }}>
+      <Pressable onPress={() => { 
+        const nextShow = !showPromo;
+        setShowPromo(nextShow); 
+        setShowStats(false); 
+        if (nextShow) fetchPromotions();
+      }}>
         <LinearGradient colors={['#F59E0B', '#D97706']} style={styles.premiumFab}>
           <Text style={styles.premiumFabIcon}>🎁</Text>
         </LinearGradient>
@@ -668,7 +682,31 @@ const TableMap = ({ onNavigate }) => {
             </Pressable>
           </View>
           <View style={styles.promoModalDivider} />
-          <Text style={styles.promoModalEmpty}>Hiện chưa có chương trình khuyến mãi nào đang chạy.</Text>
+          
+          {loadingPromo ? (
+            <ActivityIndicator size="small" color="#F59E0B" style={{ marginVertical: 20 }} />
+          ) : promotions.length > 0 ? (
+            <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled={true}>
+              {promotions.map((p, idx) => (
+                <View key={p.idKhuyenMai || idx} style={{ backgroundColor: '#FFFBEB', padding: 12, borderRadius: 12, marginBottom: 10, borderWidth: 1, borderColor: '#FDE68A', borderStyle: 'dashed' }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ color: '#B45309', fontWeight: '800', fontSize: 16 }}>{p.maCode}</Text>
+                    <Text style={{ color: '#D97706', fontWeight: '700' }}>
+                      {p.loaiKhuyenMai === 'GIAM_PHAN_TRAM' ? `-${p.giaTriGiam}%` : `-${p.giaTriGiam?.toLocaleString()}đ`}
+                    </Text>
+                  </View>
+                  <Text style={{ color: '#78350F', fontSize: 13, marginTop: 4 }}>
+                    Đơn tối thiểu: {p.donToiThieu?.toLocaleString()}đ
+                  </Text>
+                  <Text style={{ color: '#92400E', fontSize: 11, marginTop: 2 }}>
+                    HSD: {new Date(p.ngayHetHan).toLocaleDateString('vi-VN')}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+          ) : (
+            <Text style={styles.promoModalEmpty}>Hiện chưa có chương trình khuyến mãi nào đang chạy.</Text>
+          )}
         </View>
       </View>
     );
@@ -680,7 +718,7 @@ const TableMap = ({ onNavigate }) => {
 
       {isTablet ? (
         <>
-          {renderTabletSidebar()}
+
           <View style={styles.tabletMain}>
             {/* --- WATERMARK DECORATIONS --- */}
             <View style={[StyleSheet.absoluteFillObject, { overflow: 'hidden', zIndex: 0 }]} pointerEvents="none">
@@ -716,18 +754,7 @@ const TableMap = ({ onNavigate }) => {
       {invoiceTable && <InvoiceDetailSheet table={invoiceTable} onClose={() => setInvoiceTable(null)} onRefresh={fetchData} onOpenMenu={(tables, resId, isTakeaway, invId) => handleOpenMenu(tables, resId, isTakeaway, invId)} />}
       {editReserveTable && <EditReserveSheet table={editReserveTable} onClose={() => setEditReserveTable(null)} onRefresh={fetchData} />}
       {selectedTakeaway && <TakeawayDetailSheet invoice={selectedTakeaway} onClose={() => setSelectedTakeaway(null)} onRefresh={fetchData} onOpenMenu={(tables, res, takeaway, invId) => handleOpenMenu([], null, true, invId)} />}
-      <UserProfileModal
-        isVisible={showProfile}
-        onClose={() => setShowProfile(false)}
-        onLogout={async () => {
-          setShowProfile(false);
-          await safeAsyncStorage.removeItem('token');
-          await safeAsyncStorage.removeItem('user');
-          // Reset navigation để không quay lại được trang TableMap bằng nút Back
-          onNavigate('Login', { reset: true });
-        }}
-        user={currentUser}
-      />
+
       <FilterModal
         isVisible={showFilterModal}
         onClose={() => setShowFilterModal(false)}

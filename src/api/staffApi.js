@@ -6,6 +6,11 @@ const staffApi = {
   },
   updateProfile: (id, data) => {
     return axiosClient.put(`/nhan-vien/${id}`, data);
+  },
+  updateProfileWithAvatar: (id, formData) => {
+    return axiosClient.put(`/nhan-vien/${id}/profile`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
   }
 };
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import styles from './Sidebar.styles';
 
@@ -71,14 +71,22 @@ const Sidebar = ({
           onPress={onShowProfile}
         >
           <View style={styles.avatarWrap}>
-            <Text style={styles.avatarInitials}>
-              {currentUser?.hoTen ? currentUser.hoTen.split(' ').pop().substring(0, 2).toUpperCase() : '??'}
-            </Text>
+            {currentUser?.avatar || currentUser?.hinhAnh ? (
+              <Image source={{ uri: currentUser.avatar || currentUser.hinhAnh }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.avatarInitials}>
+                {currentUser?.hoTen ? currentUser.hoTen.split(' ').pop().substring(0, 2).toUpperCase() : '??'}
+              </Text>
+            )}
           </View>
           {!isCollapsed && (
             <View style={styles.userInfoText}>
               <Text style={styles.userName} numberOfLines={1}>{currentUser?.hoTen || 'Đang tải...'}</Text>
-              <Text style={styles.userRole}>{currentUser?.vaiTro === 'PHUC_VU' ? 'Phục vụ' : currentUser?.vaiTro || 'Nhân viên'}</Text>
+              <Text style={styles.userRole}>
+                {currentUser?.vaiTro === 'PHUC_VU' ? 'Phục vụ' : 
+                 currentUser?.vaiTro === 'THU_NGAN' ? 'Thu ngân' : 
+                 currentUser?.vaiTro || 'Nhân viên'}
+              </Text>
             </View>
           )}
         </Pressable>

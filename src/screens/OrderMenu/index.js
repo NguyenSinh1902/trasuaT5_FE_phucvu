@@ -7,6 +7,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 
 import categoryApi from '../../api/categoryApi';
+import promotionApi from '../../api/promotionApi';
 import productApi from '../../api/productApi';
 import orderApi from '../../api/orderApi';
 import ProductDetail from '../ProductDetail';
@@ -175,8 +176,8 @@ const CartItem = React.memo(({ item, index, onUpdateQty, onRemove, onEdit }) => 
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <Text style={{ fontSize: 13, color: '#64748B', flex: 1, marginRight: 16, lineHeight: 18 }} numberOfLines={2}>
-              {item.ice || 'Kh. đá'}, {item.sugar || 'Kh. đường'}
-              {item.toppings?.length > 0 && `\n+${item.toppings.length} Tops`}
+              {item.variant?.tenKichCo || item.size || 'Size M'}, {item.ice || 'Kh. đá'}, {item.sugar || 'Kh. đường'}
+              {item.toppings?.length > 0 && `\n+ ${item.toppings.map(t => t.tenSanPham || 'Topping').join(', ')}`}
             </Text>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 12, padding: 4, borderWidth: 1, borderColor: '#E2E8F0' }}>
@@ -199,6 +200,7 @@ const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, reservation, cart
   const [query, setQuery] = useState('');
   const [activeCat, setActiveCat] = useState('all');
   const [categories, setCategories] = useState([{ idDanhMuc: 'all', tenDanhMuc: 'Khám Phá', emoji: '🌟' }]);
+  const [promotions, setPromotions] = useState([]);
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -285,7 +287,15 @@ const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, reservation, cart
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [catRes, homeRes] = await Promise.all([categoryApi.getAll(), productApi.getHome()]);
+      const [catRes, homeRes, promoRes] = await Promise.all([
+        categoryApi.getAll(), 
+        productApi.getHome(),
+        promotionApi.getActive().catch(() => [])
+      ]);
+      
+      const promoData = promoRes.data || promoRes || [];
+      setPromotions(promoData);
+
       const catData = Array.isArray(catRes) ? catRes : (catRes.data || []);
       const formattedCats = [
         { idDanhMuc: 'all', tenDanhMuc: 'Khám Phá', emoji: '🌟' },
@@ -428,7 +438,7 @@ const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, reservation, cart
                 end={{ x: 1, y: 1 }}
                 style={s.checkoutBtn}
               >
-                {submitting ? <ActivityIndicator color="#FFF" /> : <Text style={s.checkoutBtnText}>Gửi đơn - {items.length} món</Text>}
+                {submitting ? <ActivityIndicator color="#FFF" /> : <Text style={s.checkoutBtnText}>Gửi đơn + {items.length} món</Text>}
               </LinearGradient>
             </Pressable>
           </Animated.View>
@@ -483,25 +493,43 @@ const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, reservation, cart
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 24, paddingTop: 8 }}>
 
             {/* BANNER PROMO */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 36 }}>
-              <LinearGradient colors={['#ECFCCB', '#D1FAE5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[s.bannerCard, { marginRight: 16 }]}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: '#047857', fontWeight: '900', fontSize: 13, marginBottom: 6, letterSpacing: 0.5 }}>KHUYẾN MÃI ĐẶC BIỆT</Text>
-                  <Text style={{ color: '#1E293B', fontWeight: '800', fontSize: 24, marginBottom: 6 }}>Mua 1 Tặng 1</Text>
-                  <Text style={{ color: '#475569', fontSize: 14 }}>Áp dụng cho Trà Nhài Đào (Size L)</Text>
-                </View>
-                <Text style={{ fontSize: 56, marginLeft: 20 }}>🍑</Text>
-              </LinearGradient>
-
-              <LinearGradient colors={['#FEF3C7', '#FEF08A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.bannerCard}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: '#B45309', fontWeight: '900', fontSize: 13, marginBottom: 6, letterSpacing: 0.5 }}>HOT DEAL TRƯA NAY</Text>
-                  <Text style={{ color: '#1E293B', fontWeight: '800', fontSize: 24, marginBottom: 6 }}>Giảm 15% Bill</Text>
-                  <Text style={{ color: '#475569', fontSize: 14 }}>Nhập mã: MATCHA15</Text>
-                </View>
-                <Text style={{ fontSize: 56, marginLeft: 20 }}>🍵</Text>
-              </LinearGradient>
-            </ScrollView>
+            {activeCat !== 'all' && (
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false} 
+                style={{ marginBottom: 20, height: 150 }} 
+                contentContainerStyle={{ alignItems: 'center' }}
+              >
+                <LinearGradient colors={['#ECFCCB', '#D1FAE5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[s.bannerCard, { marginRight: 16 }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: '#047857', fontWeight: '900', fontSize: 13, marginBottom: 6, letterSpacing: 0.5 }}>CHÀO MỪNG BẠN</Text>
+                    <Text style={{ color: '#1E293B', fontWeight: '800', fontSize: 24, marginBottom: 6 }}>Thưởng Thức Trà Ngon</Text>
+                    <Text style={{ color: '#475569', fontSize: 14 }}>Nhiều ưu đãi đang chờ bạn!</Text>
+                  </View>
+                  <Text style={{ fontSize: 56, marginLeft: 20 }}>🧋</Text>
+                </LinearGradient>
+                
+                {promotions.map((p, idx) => (
+                  <LinearGradient 
+                    key={p.idKhuyenMai || idx}
+                    colors={idx % 2 === 0 ? ['#FEF3C7', '#FEF08A'] : ['#E0F2FE', '#BAE6FD']} 
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} 
+                    style={[s.bannerCard, { marginRight: 16 }]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: idx % 2 === 0 ? '#B45309' : '#0369A1', fontWeight: '900', fontSize: 13, marginBottom: 6, letterSpacing: 0.5 }}>KHUYẾN MÃI HÔM NAY</Text>
+                      <Text style={{ color: '#1E293B', fontWeight: '800', fontSize: 24, marginBottom: 6 }}>
+                        {p.loaiKhuyenMai === 'GIAM_PHAN_TRAM' ? `Giảm ${p.giaTriGiam}%` : `Giảm ${p.giaTriGiam?.toLocaleString()}đ`}
+                      </Text>
+                      <Text style={{ color: '#475569', fontSize: 14 }}>
+                        Nhập mã: {p.maCode} | Đơn từ {p.donToiThieu?.toLocaleString()}đ
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: 56, marginLeft: 20 }}>{idx % 2 === 0 ? '🎁' : '🔥'}</Text>
+                  </LinearGradient>
+                ))}
+              </ScrollView>
+            )}
 
             {loading ? <ActivityIndicator size="large" color="#10B981" style={{ marginTop: 100 }} /> :
               filteredSections.map(section => (
@@ -553,56 +581,56 @@ const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, reservation, cart
 
       {/* SUCCESS MODAL */}
       <Modal visible={orderSuccess} transparent animationType="fade" statusBarTranslucent>
-         <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', alignItems: 'center' }}>
-            <View style={{ backgroundColor: '#FFFFFF', width: 340, borderRadius: 24, padding: 32, alignItems: 'center', shadowColor: '#10B981', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.2, shadowRadius: 24, elevation: 10 }}>
-               <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#D1FAE5', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
-                  <Text style={{ fontSize: 40 }}>✅</Text>
-               </View>
-               <Text style={{ fontSize: 24, fontWeight: '800', color: '#1E293B', marginBottom: 8 }}>Thành công!</Text>
-               <Text style={{ fontSize: 16, color: '#64748B', textAlign: 'center', marginBottom: 28 }}>Đã gửi lệnh pha chế cho quầy.</Text>
-               
-               <Pressable 
-                  style={({pressed}) => [{ width: '100%', paddingVertical: 16, borderRadius: 16, alignItems: 'center', opacity: pressed ? 0.8 : 1 }]}
-                  onPress={() => {
-                     setOrderSuccess(false);
-                     if (onNavigate) onNavigate('TableMap');
-                  }}
-               >
-                 <LinearGradient colors={['#10B981', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16 }} />
-                 <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700' }}>Quay lại Sơ đồ</Text>
-               </Pressable>
+        <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ backgroundColor: '#FFFFFF', width: 340, borderRadius: 24, padding: 32, alignItems: 'center', shadowColor: '#10B981', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.2, shadowRadius: 24, elevation: 10 }}>
+            <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#D1FAE5', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
+              <Text style={{ fontSize: 40 }}>✅</Text>
             </View>
-         </View>
+            <Text style={{ fontSize: 24, fontWeight: '800', color: '#1E293B', marginBottom: 8 }}>Thành công!</Text>
+            <Text style={{ fontSize: 16, color: '#64748B', textAlign: 'center', marginBottom: 28 }}>Đã gửi lệnh pha chế cho quầy.</Text>
+
+            <Pressable
+              style={({ pressed }) => [{ width: '100%', paddingVertical: 16, borderRadius: 16, alignItems: 'center', opacity: pressed ? 0.8 : 1 }]}
+              onPress={() => {
+                setOrderSuccess(false);
+                if (onNavigate) onNavigate('TableMap');
+              }}
+            >
+              <LinearGradient colors={['#10B981', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16 }} />
+              <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700' }}>Quay lại Sơ đồ</Text>
+            </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* ERROR MODAL */}
       <Modal visible={!!orderError} transparent animationType="fade" statusBarTranslucent>
-         <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', alignItems: 'center' }}>
-            <View style={{ backgroundColor: '#FFFFFF', width: 340, borderRadius: 24, padding: 32, alignItems: 'center' }}>
-               <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
-                  <Text style={{ fontSize: 40 }}>❌</Text>
-               </View>
-               <Text style={{ fontSize: 24, fontWeight: '800', color: '#1E293B', marginBottom: 8 }}>Lỗi đặt món</Text>
-               <Text style={{ fontSize: 16, color: '#64748B', textAlign: 'center', marginBottom: 28 }}>{orderError}</Text>
-               
-               <Pressable 
-                  style={({pressed}) => [{ width: '100%', paddingVertical: 16, borderRadius: 16, backgroundColor: '#F1F5F9', alignItems: 'center', opacity: pressed ? 0.8 : 1 }]}
-                  onPress={() => setOrderError(null)}
-               >
-                 <Text style={{ color: '#475569', fontSize: 16, fontWeight: '700' }}>Đóng lại</Text>
-               </Pressable>
+        <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ backgroundColor: '#FFFFFF', width: 340, borderRadius: 24, padding: 32, alignItems: 'center' }}>
+            <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
+              <Text style={{ fontSize: 40 }}>❌</Text>
             </View>
-         </View>
+            <Text style={{ fontSize: 24, fontWeight: '800', color: '#1E293B', marginBottom: 8 }}>Lỗi đặt món</Text>
+            <Text style={{ fontSize: 16, color: '#64748B', textAlign: 'center', marginBottom: 28 }}>{orderError}</Text>
+
+            <Pressable
+              style={({ pressed }) => [{ width: '100%', paddingVertical: 16, borderRadius: 16, backgroundColor: '#F1F5F9', alignItems: 'center', opacity: pressed ? 0.8 : 1 }]}
+              onPress={() => setOrderError(null)}
+            >
+              <Text style={{ color: '#475569', fontSize: 16, fontWeight: '700' }}>Đóng lại</Text>
+            </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* FULL SCREEN SUBMITTING LOADING OVERLAY */}
       <Modal visible={submitting} transparent animationType="fade" statusBarTranslucent>
-         <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)', justifyContent: 'center', alignItems: 'center' }}>
-            <View style={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', padding: 32, borderRadius: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 20, elevation: 15 }}>
-               <ActivityIndicator size="large" color="#10B981" />
-               <Text style={{ marginTop: 16, fontSize: 16, fontWeight: '700', color: '#1E293B' }}>Đang lưu đơn hàng...</Text>
-            </View>
-         </View>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', padding: 32, borderRadius: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 20, elevation: 15 }}>
+            <ActivityIndicator size="large" color="#10B981" />
+            <Text style={{ marginTop: 16, fontSize: 16, fontWeight: '700', color: '#1E293B' }}>Đang lưu đơn hàng...</Text>
+          </View>
+        </View>
       </Modal>
 
     </View>
@@ -636,7 +664,7 @@ const s = StyleSheet.create({
   searchInput: { flex: 1, color: '#064E3B', fontSize: 14, fontWeight: '600' },
   filterBtn: { width: 48, height: 48, borderRadius: 100, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#A5D6A7' },
 
-  bannerCard: { flexDirection: 'row', alignItems: 'center', width: 380, borderRadius: 28, padding: 24 },
+  bannerCard: { flexDirection: 'row', alignItems: 'center', width: 380, borderRadius: 28, padding: 24, height: 130 },
 
   sectionTitle: { fontSize: 22, fontWeight: '900', color: '#1E293B', marginBottom: 20 },
   productGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: '2%' },

@@ -95,6 +95,23 @@ const ProductDetail = ({ onNavigate, product, table, isTakeaway, invoiceId, rese
     }
   };
 
+  const handleAISuggestionsUpdate = (aiSelectedIds, allSuggestionIds) => {
+    setSelectedToppings(prev => {
+      // Remove any previously selected items that belong to AI suggestions 
+      // (this resets their state to whatever AI modal returned)
+      let next = prev.filter(id => !allSuggestionIds.includes(id));
+      
+      // Add the currently selected ones from AI modal back in
+      aiSelectedIds.forEach(id => {
+        if (!next.includes(id)) {
+          next.push(id);
+        }
+      });
+      return next;
+    });
+    setShowAI(false);
+  };
+
   const { width } = useWindowDimensions();
   const isTablet = width >= 700;
 
@@ -405,7 +422,15 @@ const ProductDetail = ({ onNavigate, product, table, isTakeaway, invoiceId, rese
           </View>
         </View>
         {/* AI Suggestion Modal */}
-        <AISuggestionModal visible={showAI} table={table} product={product} onClose={() => setShowAI(false)} onAdd={() => setShowAI(false)} />
+        <AISuggestionModal 
+          visible={showAI} 
+          table={table} 
+          product={product} 
+          allToppings={toppings}
+          currentSelectedToppings={selectedToppings}
+          onClose={() => setShowAI(false)} 
+          onAdd={handleAISuggestionsUpdate} 
+        />
       </View>
     );
   };
@@ -579,8 +604,10 @@ const ProductDetail = ({ onNavigate, product, table, isTakeaway, invoiceId, rese
         visible={showAI}
         table={table}
         product={product}
+        allToppings={toppings}
+        currentSelectedToppings={selectedToppings}
         onClose={() => setShowAI(false)}
-        onAdd={() => setShowAI(false)}
+        onAdd={handleAISuggestionsUpdate}
       />
 
       {/* Bottom Summary Bar */}

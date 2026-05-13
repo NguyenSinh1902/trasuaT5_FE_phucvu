@@ -86,7 +86,7 @@ const Login = ({ onNavigate }) => {
             <Text style={styles.headerText}>Chào mừng trở lại!</Text>
             <Text style={styles.subHeaderText}>Đăng nhập để vào hệ thống ứng dụng</Text>
 
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, errorMessage ? { borderColor: '#FCA5A5' } : null]}>
               <Text style={styles.icon}>👤</Text>
               <TextInput
                 style={styles.input}
@@ -119,6 +119,10 @@ const Login = ({ onNavigate }) => {
                 <Text style={styles.eyeIcon}>{showPassword ? '👁️' : '🙈'}</Text>
               </Pressable>
             </View>
+
+            <Pressable style={styles.forgotPassword} onPress={() => onNavigate && onNavigate('ForgotPassword')}>
+              <Text style={styles.forgotPasswordText}>Quên mật khẩu?</Text>
+            </Pressable>
 
             {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
 

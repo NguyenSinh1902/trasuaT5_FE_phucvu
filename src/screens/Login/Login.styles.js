@@ -184,6 +184,17 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
   },
+  forgotPassword: {
+    alignSelf: 'flex-end',
+    marginTop: -12,
+    marginBottom: 15,
+    paddingRight: 4,
+  },
+  forgotPasswordText: {
+    color: COLORS.textSub,
+    fontSize: 14,
+    fontWeight: '500',
+  },
   errorText: {
     color: '#EF4444',
     fontSize: 13,

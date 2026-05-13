@@ -14,6 +14,8 @@ import OrderSummary from './src/screens/OrderSummary';
 import OrderHistory from './src/screens/OrderHistory';
 import VerifyOTP from './src/screens/Register/VerifyOTP';
 import Settings from './src/screens/Settings';
+import ForgotPassword from './src/screens/ForgotPassword';
+import MainLayout from './src/components/MainLayout';
 
 const Stack = createNativeStackNavigator();
 
@@ -113,7 +115,7 @@ const App = () => {
     <NavigationContainer>
       <Stack.Navigator
         initialRouteName={initialRoute}
-        screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
+        screenOptions={{ headerShown: false, animation: 'none' }}
       >
         <Stack.Screen name="Welcome">
           {({ navigation }) => <ManHinhChao onNavigate={(screen, params) => navigation.navigate(screen, params)} />}
@@ -127,22 +129,16 @@ const App = () => {
           {({ navigation }) => <Register onNavigate={(screen, params) => navigation.navigate(screen, params)} />}
         </Stack.Screen>
 
+        <Stack.Screen name="ForgotPassword">
+          {({ navigation }) => <ForgotPassword onNavigate={(screen, params) => navigation.navigate(screen, params)} />}
+        </Stack.Screen>
+
         <Stack.Screen name="VerifyOTP">
           {({ navigation, route }) => <VerifyOTP onNavigate={(screen, params) => navigation.navigate(screen, params)} route={route} />}
         </Stack.Screen>
 
         <Stack.Screen name="TableMap">
-          {({ navigation }) => (
-            <TableMap
-              onNavigate={(screen, params) => {
-                if (params?.reset) {
-                  navigation.reset({ index: 0, routes: [{ name: screen }] });
-                } else {
-                  navigation.navigate(screen, params);
-                }
-              }}
-            />
-          )}
+          {({ navigation, route }) => <MainLayout navigation={navigation} route={route} />}
         </Stack.Screen>
 
         <Stack.Screen name="OrderMenu">
@@ -204,19 +200,7 @@ const App = () => {
           }}
         </Stack.Screen>
 
-        <Stack.Screen name="OrderHistory">
-          {({ navigation }) => <OrderHistory onNavigate={(screen, params) => navigation.navigate(screen, params)} />}
-        </Stack.Screen>
-
-        <Stack.Screen name="Settings">
-          {({ navigation }) => <Settings onNavigate={(screen, params) => {
-            if (params?.reset) {
-              navigation.reset({ index: 0, routes: [{ name: screen }] });
-            } else {
-              navigation.navigate(screen, params);
-            }
-          }} />}
-        </Stack.Screen>
+        {/* OrderHistory and Settings are now handled inside MainLayout */}
       </Stack.Navigator>
     </NavigationContainer>
   );

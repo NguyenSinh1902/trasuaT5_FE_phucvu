@@ -35,6 +35,8 @@ const SidebarStyles = StyleSheet.create({
     paddingHorizontal: 0,
     alignItems: 'center',
     borderRadius: 20,
+    width: 60,
+    alignSelf: 'center',
   },
   brandGroup: {
     flexDirection: 'row',
@@ -79,7 +81,9 @@ const SidebarStyles = StyleSheet.create({
     marginVertical: 10,
   },
   tabletNavContainerCollapsed: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
+    width: 60,
+    alignSelf: 'center',
   },
   tabletNavItem: {
     flexDirection: 'row',
@@ -149,6 +153,8 @@ const SidebarStyles = StyleSheet.create({
     paddingHorizontal: 0,
     alignItems: 'center',
     borderRadius: 20,
+    width: 60,
+    alignSelf: 'center',
   },
   userProfileGroup: {
     flexDirection: 'row',
@@ -161,6 +167,11 @@ const SidebarStyles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 22,
   },
   avatarInitials: {
     color: '#34A853',
