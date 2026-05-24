@@ -1,71 +1,138 @@
-import React from 'react';
-import { View, Text, Modal, Pressable, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  View, Text, Modal, Pressable, StyleSheet,
+  ScrollView, useWindowDimensions,
+} from 'react-native';
+import safeAsyncStorage from '../../../utils/storage';
 
-const NotificationModal = ({ isVisible, onClose }) => {
+// Key cố định — không per-user để tránh mất dữ liệu khi currentUser chưa load xong
+const NOTI_KEY = 'app_notifications';
+
+/**
+ * Thêm một thông báo mới vào storage (gọi từ bên ngoài component)
+ * @param {object} noti - { title, message, type }
+ */
+export async function pushNotification(noti) {
+  try {
+    const raw = await safeAsyncStorage.getItem(NOTI_KEY);
+    const existing = raw ? JSON.parse(raw) : [];
+    const newItem = {
+      id: Date.now().toString(),
+      title: noti.title,
+      message: noti.message,
+      type: noti.type || 'system',
+      time: Date.now(),
+      isUnread: true,
+    };
+    const updated = [newItem, ...existing].slice(0, 50);
+    await safeAsyncStorage.setItem(NOTI_KEY, JSON.stringify(updated));
+  } catch (e) {
+    console.log('[Noti] pushNotification error:', e?.message);
+  }
+}
+
+const getIcon = (type) => {
+  switch (type) {
+    case 'order': return '🍵';
+    case 'payment': return '✅';
+    case 'cancelled': return '🚨';
+    default: return '🔔';
+  }
+};
+
+const getColor = (type) => {
+  switch (type) {
+    case 'order': return '#10B981';
+    case 'payment': return '#3B82F6';
+    case 'cancelled': return '#EF4444';
+    default: return '#64748B';
+  }
+};
+
+const formatTime = (timestamp) => {
+  const diff = Math.floor((Date.now() - timestamp) / 1000);
+  if (diff < 60) return 'Vừa xong';
+  if (diff < 3600) return `${Math.floor(diff / 60)} phút trước`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} giờ trước`;
+  return `${Math.floor(diff / 86400)} ngày trước`;
+};
+
+const NotificationModal = ({ isVisible, onClose, userId }) => {
   const { width } = useWindowDimensions();
   const isTablet = width >= 700;
 
-  const notifications = [
-    { id: 1, title: 'Đơn hàng mới', message: 'Bàn 05 vừa gọi thêm 2 món mới.', time: '2 phút trước', type: 'order', isUnread: true },
-    { id: 2, title: 'Yêu cầu thanh toán', message: 'Bàn 02 yêu cầu thanh toán hóa đơn.', time: '5 phút trước', type: 'payment', isUnread: true },
-    { id: 3, title: 'Bàn đặt trước', message: 'Khách hàng Nguyễn Văn A sắp đến (Bàn 08).', time: '15 phút trước', type: 'reservation', isUnread: true },
-    { id: 4, title: 'Hệ thống', message: 'Cập nhật phiên bản mới thành công.', time: '1 giờ trước', type: 'system', isUnread: false },
-  ];
+  const [notifications, setNotifications] = useState([]);
 
-  const getIcon = (type) => {
-    switch (type) {
-      case 'order': return '🍵';
-      case 'payment': return '💳';
-      case 'reservation': return '📅';
-      default: return '🔔';
+  const loadNotifications = useCallback(async () => {
+    try {
+      const raw = await safeAsyncStorage.getItem(NOTI_KEY);
+      setNotifications(raw ? JSON.parse(raw) : []);
+    } catch (e) {
+      setNotifications([]);
     }
+  }, []);
+
+  useEffect(() => {
+    if (isVisible) loadNotifications();
+  }, [isVisible, loadNotifications]);
+
+  const markAllRead = async () => {
+    const updated = notifications.map(n => ({ ...n, isUnread: false }));
+    setNotifications(updated);
+    await safeAsyncStorage.setItem(NOTI_KEY, JSON.stringify(updated));
   };
 
-  const getColor = (type) => {
-    switch (type) {
-      case 'order': return '#10B981';
-      case 'payment': return '#F59E0B';
-      case 'reservation': return '#3B82F6';
-      default: return '#64748B';
-    }
-  };
+  const unreadCount = notifications.filter(n => n.isUnread).length;
 
   return (
-    <Modal visible={isVisible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={isVisible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={[styles.content, isTablet && styles.contentTablet]}>
           <View style={styles.header}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={styles.title}>Thông báo</Text>
-              <View style={styles.badge}><Text style={styles.badgeText}>3 mới</Text></View>
+              {unreadCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{unreadCount} mới</Text>
+                </View>
+              )}
             </View>
             <Pressable onPress={onClose} style={styles.closeBtn}>
               <Text style={styles.closeText}>✕</Text>
             </Pressable>
           </View>
-          
+
           <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-            {notifications.map((item) => (
-              <View key={item.id} style={[styles.item, item.isUnread && styles.itemUnread]}>
-                <View style={[styles.iconWrap, { backgroundColor: getColor(item.type) + '15' }]}>
-                  <Text style={styles.icon}>{getIcon(item.type)}</Text>
-                </View>
-                <View style={styles.textContainer}>
-                  <View style={styles.row}>
-                    <Text style={styles.itemTitle}>{item.title}</Text>
-                    <Text style={styles.time}>{item.time}</Text>
-                  </View>
-                  <Text style={styles.message} numberOfLines={2}>{item.message}</Text>
-                </View>
-                {item.isUnread && <View style={styles.unreadDot} />}
+            {notifications.length === 0 ? (
+              <View style={styles.empty}>
+                <Text style={styles.emptyIcon}>🔔</Text>
+                <Text style={styles.emptyText}>Chưa có thông báo nào</Text>
               </View>
-            ))}
+            ) : (
+              notifications.map((item) => (
+                <View key={item.id} style={[styles.item, item.isUnread && styles.itemUnread]}>
+                  <View style={[styles.iconWrap, { backgroundColor: getColor(item.type) + '18' }]}>
+                    <Text style={styles.icon}>{getIcon(item.type)}</Text>
+                  </View>
+                  <View style={styles.textContainer}>
+                    <View style={styles.row}>
+                      <Text style={styles.itemTitle}>{item.title}</Text>
+                      <Text style={styles.time}>{formatTime(item.time)}</Text>
+                    </View>
+                    <Text style={styles.message} numberOfLines={2}>{item.message}</Text>
+                  </View>
+                  {item.isUnread && <View style={styles.unreadDot} />}
+                </View>
+              ))
+            )}
           </ScrollView>
 
-          <Pressable style={styles.footer} onPress={onClose}>
-            <Text style={styles.footerText}>Đánh dấu tất cả là đã đọc</Text>
-          </Pressable>
+          {notifications.length > 0 && (
+            <Pressable style={styles.footer} onPress={markAllRead}>
+              <Text style={styles.footerText}>Đánh dấu tất cả là đã đọc</Text>
+            </Pressable>
+          )}
         </View>
       </View>
     </Modal>
@@ -75,7 +142,7 @@ const NotificationModal = ({ isVisible, onClose }) => {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -86,7 +153,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
     shadowRadius: 20,
     elevation: 10,
     overflow: 'hidden',
@@ -135,9 +202,21 @@ const styles = StyleSheet.create({
   list: {
     padding: 12,
   },
+  empty: {
+    alignItems: 'center',
+    paddingVertical: 48,
+  },
+  emptyIcon: {
+    fontSize: 40,
+    marginBottom: 12,
+  },
+  emptyText: {
+    color: '#94A3B8',
+    fontSize: 15,
+  },
   item: {
     flexDirection: 'row',
-    padding: 16,
+    padding: 14,
     borderRadius: 16,
     marginBottom: 8,
     alignItems: 'center',
@@ -151,7 +230,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: 14,
   },
   icon: {
     fontSize: 22,
@@ -166,25 +245,27 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   itemTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: '#1E293B',
+    flex: 1,
+    marginRight: 8,
   },
   time: {
     fontSize: 12,
     color: '#94A3B8',
   },
   message: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#64748B',
-    lineHeight: 20,
+    lineHeight: 19,
   },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: '#3B82F6',
-    marginLeft: 12,
+    marginLeft: 10,
   },
   footer: {
     padding: 20,

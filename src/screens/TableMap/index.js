@@ -22,7 +22,7 @@ import InvoiceDetailSheet from './components/InvoiceDetailSheet';
 import UpdateGuestSheet from './components/UpdateGuestSheet';
 import TakeawayDetailSheet from './components/TakeawayDetailSheet';
 import FilterModal from './components/FilterModal';
-import NotificationModal from './components/NotificationModal';
+import NotificationModal, { pushNotification } from './components/NotificationModal';
 import { listenToFirebase } from '../../utils/firebaseListener';
 import ReadyToServeToast from '../../components/ReadyToServeToast';
 
@@ -49,6 +49,19 @@ const TableMap = ({ onNavigate }) => {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showNotiModal, setShowNotiModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [unreadNotiCount, setUnreadNotiCount] = useState(0);
+
+  const loadNotiCount = useCallback(async () => {
+    try {
+      const raw = await safeAsyncStorage.getItem('app_notifications');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setUnreadNotiCount(parsed.filter(n => n.isUnread).length);
+      } else {
+        setUnreadNotiCount(0);
+      }
+    } catch (e) {}
+  }, []);
 
   // Sheets state
   const [selectedTable, setSelectedTable] = useState(null);
@@ -190,57 +203,155 @@ const TableMap = ({ onNavigate }) => {
       isInitialLoad.current = true;
       loadUserData();
       fetchData(true);
+      loadNotiCount();
 
       // Bắt đầu lắng nghe Firebase Realtime Database cho node tables/
-      const listener = listenToFirebase('tables', (firebaseTables) => {
+      const tableListener = listenToFirebase('tables', firebaseTables => {
         if (!firebaseTables || typeof firebaseTables !== 'object') return;
-        // firebaseTables là object { "2": { idBan, tinhTrang, ... }, "3": {...}, ... }
-        const updates = Object.values(firebaseTables);
+        // Lọc bỏ các entry null (xảy ra khi Firebase xoá/reset bàn sau thanh toán)
+        const updates = Object.values(firebaseTables).filter(u => u !== null && u !== undefined && u.idBan != null);
         if (updates.length === 0) return;
 
-        // Cập nhật trạng thái bàn SILENT (không trigger loading spinner)
         setTables(prevTables => {
           if (prevTables.length === 0) return prevTables;
+          let needsFullRefresh = false;
           const next = prevTables.map(table => {
-            const fbTable = updates.find(u => u.idBan === table.idBan);
+            const fbTable = updates.find(u => u.idBan == table.idBan);
             if (fbTable && fbTable.tinhTrang !== table.tinhTrangBan) {
+              // Nếu bàn vừa chuyển sang TRONG (giải phóng) -> cần fetch để xóa invoice khỏi state
+              if (fbTable.tinhTrang === 'TRONG') {
+                needsFullRefresh = true;
+              }
               return { ...table, tinhTrangBan: fbTable.tinhTrang };
             }
             return table;
           });
           tablesRef.current = next;
+          if (needsFullRefresh) {
+            // Timeout nhỏ để React render xong bước này trước khi fetch
+            setTimeout(() => fetchData(false), 500);
+          }
           return next;
         });
       });
+      firebaseListenerRef.current = tableListener;
 
-      firebaseListenerRef.current = listener;
-
-      // Lắng nghe orders/ — thông báo khi đơn chuyển sang CHO_LAY_MON
-      const ordersListener = listenToFirebase('orders', (firebaseOrders) => {
+      // Lắng nghe orders/ — thông báo khi đơn chuyển sang CHO_LAY_MON và cập nhật state
+      const orderListener = listenToFirebase('orders', firebaseOrders => {
         if (!firebaseOrders || typeof firebaseOrders !== 'object') return;
-        const orderUpdates = Object.values(firebaseOrders);
+        // Lọc bỏ các entry null
+        const orderUpdates = Object.values(firebaseOrders).filter(o => o !== null && o !== undefined && o.idHoaDon != null);
+
+        // Thứ tự vòng đời của đơn hàng — trạng thái có rank cao hơn có nghĩa là tiến xa hơn
+        const STATUS_RANK = {
+          CHO_XAC_NHAN: 0, DANG_PHA_CHE: 1, CHO_LAY_MON: 2,
+          DANG_PHUC_VU: 3, CHO_THANH_TOAN: 4, DA_THANH_TOAN: 5,
+          HOAN_TAT: 6, DA_HUY: 6,
+        };
+        // Chỉ cập nhật nếu Firebase có trạng thái mới hơn hoặc bằng local
+        const shouldUpdate = (localStatus, fbStatus) => {
+          const localRank = STATUS_RANK[localStatus] ?? -1;
+          const fbRank = STATUS_RANK[fbStatus] ?? -1;
+          return fbRank >= localRank;
+        };
 
         orderUpdates.forEach(order => {
           const key = `${order.idHoaDon}_${order.trangThai}`;
+
+          // Toast: món đã sẵn sàng (CHO_LAY_MON)
+          // An toàn vì trạng thái này chỉ tồn tại ngắn, ít bị stale
           if (order.trangThai === 'CHO_LAY_MON' && !notifiedOrdersRef.current.has(key)) {
             notifiedOrdersRef.current.add(key);
 
-            // Tìm tên bàn từ danh sách bàn hiện tại
             const matchedTable = tablesRef.current.find(
-              t => t.invoice?.idHoaDon === order.idHoaDon
+              t => t.invoice?.idHoaDon == order.idHoaDon
             );
             const tableName = matchedTable?.tenBan || `Đơn #${order.idHoaDon}`;
 
             setActiveToast({
               id: key,
+              type: 'ready',
               message: `${tableName} — Đồ uống đã pha xong, ra quầy lấy món nhé!`,
               duration: 6000,
             });
+            pushNotification({ title: 'Món đã sẵn sàng', message: `${tableName} — Đồ uống đã pha xong!`, type: 'order' }).then(loadNotiCount);
           }
         });
-      });
 
-      ordersListenerRef.current = ordersListener;
+        // Cập nhật trạng thái đơn hàng trên bàn
+        // Toast thanh toán/hủy được detect tại đây để so sánh old vs new status chính xác
+        setTables(prevTables => {
+          let cancelledTableName = null;
+          const next = prevTables.map(t => {
+            if (t.invoice) {
+              const fbOrder = orderUpdates.find(o => o.idHoaDon == t.invoice.idHoaDon);
+              if (fbOrder && shouldUpdate(t.invoice.trangThai, fbOrder.trangThai) &&
+                  (fbOrder.trangThai !== t.invoice.trangThai || fbOrder.tongThanhToan !== t.invoice.tongThanhToan)) {
+
+                // Toast: đơn vừa chuyển sang DA_THANH_TOAN (thanh toán thành công)
+                if (fbOrder.trangThai === 'DA_THANH_TOAN' && t.invoice.trangThai !== 'DA_THANH_TOAN') {
+                  const msg = `${t.tenBan} — Đã thanh toán xong. Chuẩn bị dọn bàn nhé!`;
+                  setActiveToast({ id: `${fbOrder.idHoaDon}_paid`, type: 'paid', message: msg, duration: 7000 });
+                  pushNotification({ title: 'Đã thanh toán', message: msg, type: 'payment' }).then(loadNotiCount);
+                }
+
+                // Toast: đơn vừa bị hủy (DA_HUY)
+                if (fbOrder.trangThai === 'DA_HUY' && t.invoice.trangThai !== 'DA_HUY') {
+                  cancelledTableName = t.tenBan;
+                  const msg = `${t.tenBan} — Đơn hàng #${fbOrder.idHoaDon} đã bị hủy!`;
+                  setActiveToast({ id: `${fbOrder.idHoaDon}_cancelled`, type: 'cancelled', message: msg, duration: 7000 });
+                  pushNotification({ title: 'Đơn bị hủy', message: msg, type: 'cancelled' }).then(loadNotiCount);
+                }
+
+                return { ...t, invoice: { ...t.invoice, trangThai: fbOrder.trangThai, tongThanhToan: fbOrder.tongThanhToan } };
+              }
+            }
+            return t;
+          });
+          tablesRef.current = next;
+          // Nếu có đơn bị hủy, cần refresh để giải phóng bàn
+          if (cancelledTableName) {
+            setTimeout(() => fetchData(false), 1000);
+          }
+          return next;
+        });
+
+        // Cập nhật trạng thái đơn mang về
+        setTakeawayOrders(prevOrders => {
+          let hasNewOrder = false;
+
+          const nextOrders = prevOrders.map(o => {
+            const fbOrder = orderUpdates.find(u => u.idHoaDon == o.idHoaDon);
+            // Chỉ cập nhật nếu Firebase có trạng thái cao hơn hoặc bằng với local (không downgrade)
+            if (fbOrder && shouldUpdate(o.trangThai, fbOrder.trangThai) &&
+                (fbOrder.trangThai !== o.trangThai || fbOrder.tongThanhToan !== o.tongThanhToan)) {
+              return { ...o, trangThai: fbOrder.trangThai, tongThanhToan: fbOrder.tongThanhToan };
+            }
+            return o;
+          });
+
+          // Nếu đơn mang về chưa tồn tại trong danh sách, hoặc nếu có đơn tại bàn mới -> gọi fetch
+          orderUpdates.forEach(fbOrder => {
+            // Bỏ qua các đơn đã hoàn tất/hủy vì chúng không hiển thị trên TableMap
+            if (['DA_THANH_TOAN', 'DA_HUY', 'HOAN_TAT'].includes(fbOrder.trangThai)) return;
+
+            const existsInTakeaway = prevOrders.some(o => o.idHoaDon == fbOrder.idHoaDon);
+            const existsInTable = tablesRef.current.some(t => t.invoice?.idHoaDon == fbOrder.idHoaDon);
+            
+            if (!existsInTakeaway && !existsInTable) {
+              // Đơn hàng chưa từng tồn tại trên bộ nhớ frontend -> cần lấy thông tin chi tiết
+              hasNewOrder = true;
+            }
+          });
+
+          if (hasNewOrder) {
+            fetchData(false);
+          }
+
+          return nextOrders;
+        });
+      });
+      ordersListenerRef.current = orderListener;
 
       return () => {
         firebaseListenerRef.current?.stop();
@@ -387,9 +498,11 @@ const TableMap = ({ onNavigate }) => {
         </Pressable>
         <Pressable style={styles.filterBtn} onPress={() => setShowNotiModal(true)}>
           <Text style={styles.filterBtnIcon}>🔔</Text>
-          <View style={styles.tabletNotiBadge}>
-            <Text style={styles.tabletNotiBadgeText}>3</Text>
-          </View>
+          {unreadNotiCount > 0 && (
+            <View style={styles.tabletNotiBadge}>
+              <Text style={styles.tabletNotiBadgeText}>{unreadNotiCount > 9 ? '9+' : unreadNotiCount}</Text>
+            </View>
+          )}
         </Pressable>
       </View>
     </View>
@@ -763,7 +876,10 @@ const TableMap = ({ onNavigate }) => {
       />
       <NotificationModal
         isVisible={showNotiModal}
-        onClose={() => setShowNotiModal(false)}
+        onClose={() => {
+          setShowNotiModal(false);
+          loadNotiCount();
+        }}
       />
       <ReadyToServeToast
         toast={activeToast}

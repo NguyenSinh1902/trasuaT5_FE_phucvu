@@ -138,7 +138,7 @@ const ReserveTableSheet = ({ table, tables, onClose, onRefresh }) => {
       onClose();
     } catch (err) {
       console.error('Reserve failed:', err);
-      setError('Không thể đặt bàn. Vui lòng kiểm tra lại thời gian.');
+      setError(err.message || 'Không thể đặt bàn. Vui lòng kiểm tra lại thời gian.');
     } finally {
       setLoading(false);
     }

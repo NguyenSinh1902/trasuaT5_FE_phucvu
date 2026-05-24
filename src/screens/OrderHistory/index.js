@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { 
+import React, { useState, useEffect, useCallback } from 'react';
+import {
   View, Text, FlatList, TextInput, Pressable, Modal,
   ActivityIndicator, useWindowDimensions, StatusBar,
-  RefreshControl 
+  RefreshControl
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import styles from './OrderHistory.styles';
 import orderApi from '../../api/orderApi';
@@ -12,7 +13,9 @@ import safeAsyncStorage from '../../utils/storage';
 import UserProfileModal from '../TableMap/components/UserProfileModal';
 import DatePicker from 'react-native-date-picker';
 import InvoiceHistoryModal from './components/InvoiceHistoryModal';
+import NotificationModal from '../TableMap/components/NotificationModal';
 import Sidebar from '../../components/Sidebar';
+import { listenToFirebase } from '../../utils/firebaseListener';
 
 const OrderHistory = ({ onNavigate }) => {
   const [orders, setOrders] = useState([]);
@@ -31,12 +34,77 @@ const OrderHistory = ({ onNavigate }) => {
   const [openStartDatePicker, setOpenStartDatePicker] = useState(false);
   const [openEndDatePicker, setOpenEndDatePicker] = useState(false);
 
+  const [showNotiModal, setShowNotiModal] = useState(false);
+  const [unreadNotiCount, setUnreadNotiCount] = useState(0);
+
+  const loadNotiCount = useCallback(async () => {
+    try {
+      const raw = await safeAsyncStorage.getItem('app_notifications');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setUnreadNotiCount(parsed.filter(n => n.isUnread).length);
+      } else {
+        setUnreadNotiCount(0);
+      }
+    } catch (e) { }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadNotiCount();
+    }, [loadNotiCount])
+  );
+
   const { width } = useWindowDimensions();
   const isTablet = width >= 700;
 
   useEffect(() => {
     loadUserData();
     fetchOrders();
+
+    const orderListener = listenToFirebase('orders', firebaseOrders => {
+      if (!firebaseOrders || typeof firebaseOrders !== 'object') return;
+      const orderUpdates = Object.values(firebaseOrders).filter(o => o !== null && o !== undefined && o.idHoaDon != null);
+
+      // Thứ tự vòng đời — chỉ cập nhật nếu Firebase tiến về phía trước, không được lùi
+      const STATUS_RANK = {
+        CHO_XAC_NHAN: 0, DANG_PHA_CHE: 1, CHO_LAY_MON: 2,
+        DANG_PHUC_VU: 3, CHO_THANH_TOAN: 4, DA_THANH_TOAN: 5,
+        HOAN_TAT: 6, DA_HUY: 6,
+      };
+      const shouldUpdate = (localStatus, fbStatus) => {
+        const localRank = STATUS_RANK[localStatus] ?? -1;
+        const fbRank = STATUS_RANK[fbStatus] ?? -1;
+        return fbRank >= localRank;
+      };
+
+      setOrders(prevOrders => {
+        if (prevOrders.length === 0) return prevOrders;
+
+        // Cập nhật in-place với bảo vệ không downgrade
+        const nextOrders = prevOrders.map(o => {
+          const fbOrder = orderUpdates.find(u => u.idHoaDon == o.idHoaDon);
+          if (fbOrder && shouldUpdate(o.trangThai, fbOrder.trangThai) &&
+            (fbOrder.trangThai !== o.trangThai || fbOrder.tongThanhToan !== o.tongThanhToan)) {
+            return { ...o, trangThai: fbOrder.trangThai, tongThanhToan: fbOrder.tongThanhToan };
+          }
+          return o;
+        });
+
+        // Nếu Firebase có đơn mới chưa có trong danh sách → fetch lại
+        // Delay 2.5s để MySQL kịp cập nhật HOAN_TAT trước khi gọi API
+        const hasNewOrder = orderUpdates.some(fb => !prevOrders.some(o => o.idHoaDon == fb.idHoaDon));
+        if (hasNewOrder) {
+          setTimeout(() => fetchOrders(), 2500);
+        }
+
+        return nextOrders;
+      });
+    });
+
+    return () => {
+      orderListener.stop();
+    };
   }, []);
 
   const loadUserData = async () => {
@@ -92,17 +160,17 @@ const OrderHistory = ({ onNavigate }) => {
   };
 
   const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.idHoaDon.toString().includes(searchQuery) || 
+    const matchesSearch = order.idHoaDon.toString().includes(searchQuery) ||
       (order.tenKhachHang && order.tenKhachHang.toLowerCase().includes(searchQuery.toLowerCase()));
-    
+
     const matchesStatus = selectedStatus === 'ALL' || order.trangThai === selectedStatus;
-    
+
     const orderDate = new Date(order.thoiGianTao);
     const today = new Date();
     const isToday = orderDate.getDate() === today.getDate() &&
-                    orderDate.getMonth() === today.getMonth() &&
-                    orderDate.getFullYear() === today.getFullYear();
-    
+      orderDate.getMonth() === today.getMonth() &&
+      orderDate.getFullYear() === today.getFullYear();
+
     let matchesTime = false;
     if (selectedTime === 'ALL') {
       matchesTime = true;
@@ -119,7 +187,7 @@ const OrderHistory = ({ onNavigate }) => {
         matchesTime = true;
       }
     }
-    
+
     return matchesSearch && matchesStatus && matchesTime;
   });
 
@@ -129,7 +197,7 @@ const OrderHistory = ({ onNavigate }) => {
     const timeStr = `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')} - ${date.getDate()}/${date.getMonth() + 1}`;
 
     return (
-      <Pressable style={styles.orderRow} onPress={() => {}}>
+      <Pressable style={styles.orderRow} onPress={() => { }}>
         <View style={{ width: 80 }}><Text style={[styles.cellText, styles.orderIdText]}>#{item.idHoaDon}</Text></View>
         <View style={{ width: 120 }}><Text style={styles.cellText}>{timeStr}</Text></View>
         <View style={{ flex: 1 }}><Text style={styles.cellText} numberOfLines={1}>{item.loaiDonHang === 'MANG_VE' ? 'Mang về' : 'Tại bàn'}</Text></View>
@@ -143,18 +211,18 @@ const OrderHistory = ({ onNavigate }) => {
           <Text style={[styles.cellText, styles.priceText]}>{item.tongThanhToan?.toLocaleString()}đ</Text>
         </View>
         <View style={{ width: 50, alignItems: 'center' }}>
-          <Pressable 
+          <Pressable
             style={({ pressed }) => [
-              { 
-                width: 36, 
-                height: 36, 
-                borderRadius: 12, 
-                backgroundColor: '#EFF6FF', 
-                justifyContent: 'center', 
-                alignItems: 'center', 
+              {
+                width: 36,
+                height: 36,
+                borderRadius: 12,
+                backgroundColor: '#EFF6FF',
+                justifyContent: 'center',
+                alignItems: 'center',
                 borderWidth: 1,
                 borderColor: '#DBEAFE',
-                opacity: pressed ? 0.6 : 1 
+                opacity: pressed ? 0.6 : 1
               }
             ]}
             onPress={() => setSelectedInvoiceId(item.idHoaDon)}
@@ -169,7 +237,7 @@ const OrderHistory = ({ onNavigate }) => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
-      
+
 
 
       <View style={styles.mainContent}>
@@ -182,23 +250,28 @@ const OrderHistory = ({ onNavigate }) => {
           <View style={styles.headerActions}>
             <View style={styles.searchBox}>
               <Text>🔍</Text>
-              <TextInput 
-                style={styles.searchInput} 
-                placeholder="Tìm mã đơn, khách hàng..." 
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Tìm mã đơn, khách hàng..."
                 placeholderTextColor="#94A3B8"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
             </View>
-            <Pressable style={styles.filterBtn} onPress={() => setShowFilterModal(true)}>
-              <View style={{ gap: 4, alignItems: 'center', flexDirection: 'row' }}>
-                <View style={{ gap: 3 }}>
-                  <View style={{ width: 16, height: 2, backgroundColor: '#475569', borderRadius: 1 }} />
-                  <View style={{ width: 10, height: 2, backgroundColor: '#475569', borderRadius: 1, alignSelf: 'center' }} />
-                  <View style={{ width: 4, height: 2, backgroundColor: '#475569', borderRadius: 1, alignSelf: 'center' }} />
-                </View>
-                <Text style={[styles.filterBtnText, { marginLeft: 8 }]}>Lọc</Text>
+            <Pressable style={[styles.filterBtn, { width: 48, paddingHorizontal: 0, justifyContent: 'center' }]} onPress={() => setShowFilterModal(true)}>
+              <View style={{ gap: 3, alignItems: 'center' }}>
+                <View style={{ width: 16, height: 2, backgroundColor: '#475569', borderRadius: 1 }} />
+                <View style={{ width: 10, height: 2, backgroundColor: '#475569', borderRadius: 1, alignSelf: 'center' }} />
+                <View style={{ width: 4, height: 2, backgroundColor: '#475569', borderRadius: 1, alignSelf: 'center' }} />
               </View>
+            </Pressable>
+            <Pressable style={[styles.filterBtn, { width: 48, paddingHorizontal: 0, justifyContent: 'center' }]} onPress={() => setShowNotiModal(true)}>
+              <Text style={{ fontSize: 20 }}>🔔</Text>
+              {unreadNotiCount > 0 && (
+                <View style={{ position: 'absolute', top: -5, right: -5, backgroundColor: '#EF4444', borderRadius: 10, width: 20, height: 20, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#FFFFFF' }}>
+                  <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: 'bold' }}>{unreadNotiCount > 9 ? '9+' : unreadNotiCount}</Text>
+                </View>
+              )}
             </Pressable>
           </View>
         </View>
@@ -217,7 +290,7 @@ const OrderHistory = ({ onNavigate }) => {
           {loading ? (
             <ActivityIndicator size="large" color="#34A853" style={{ marginTop: 100 }} />
           ) : (
-            <FlatList 
+            <FlatList
               data={filteredOrders}
               keyExtractor={item => item.idHoaDon.toString()}
               renderItem={renderOrderRow}
@@ -240,23 +313,23 @@ const OrderHistory = ({ onNavigate }) => {
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }} onPress={() => setShowFilterModal(false)}>
           <Pressable style={{ width: 400, backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 5 }} onPress={e => e.stopPropagation()}>
             <Text style={{ fontSize: 18, fontWeight: '700', color: '#1E293B', marginBottom: 20 }}>Lọc hóa đơn</Text>
-            
+
             {/* Time Filter */}
             <Text style={{ fontSize: 14, fontWeight: '600', color: '#64748B', marginBottom: 10 }}>Thời gian</Text>
             <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
-              <Pressable 
+              <Pressable
                 style={{ flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: selectedTime === 'ALL' ? '#10B981' : '#E2E8F0', backgroundColor: selectedTime === 'ALL' ? '#F0FDF4' : '#FFFFFF', alignItems: 'center' }}
                 onPress={() => setSelectedTime('ALL')}
               >
                 <Text style={{ color: selectedTime === 'ALL' ? '#047857' : '#475569', fontWeight: '600' }}>Tất cả</Text>
               </Pressable>
-              <Pressable 
+              <Pressable
                 style={{ flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: selectedTime === 'TODAY' ? '#10B981' : '#E2E8F0', backgroundColor: selectedTime === 'TODAY' ? '#F0FDF4' : '#FFFFFF', alignItems: 'center' }}
                 onPress={() => setSelectedTime('TODAY')}
               >
                 <Text style={{ color: selectedTime === 'TODAY' ? '#047857' : '#475569', fontWeight: '600' }}>Hôm nay</Text>
               </Pressable>
-              <Pressable 
+              <Pressable
                 style={{ flex: 1.5, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: selectedTime === 'RANGE' ? '#10B981' : '#E2E8F0', backgroundColor: selectedTime === 'RANGE' ? '#F0FDF4' : '#FFFFFF', alignItems: 'center' }}
                 onPress={() => {
                   setSelectedTime('RANGE');
@@ -284,7 +357,7 @@ const OrderHistory = ({ onNavigate }) => {
             {/* Status Filter */}
             <Text style={{ fontSize: 14, fontWeight: '600', color: '#64748B', marginBottom: 10 }}>Trạng thái</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
-              <Pressable 
+              <Pressable
                 style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: selectedStatus === 'ALL' ? '#10B981' : '#E2E8F0', backgroundColor: selectedStatus === 'ALL' ? '#F0FDF4' : '#FFFFFF' }}
                 onPress={() => setSelectedStatus('ALL')}
               >
@@ -294,7 +367,7 @@ const OrderHistory = ({ onNavigate }) => {
                 const style = getStatusStyle(status);
                 const isSelected = selectedStatus === status;
                 return (
-                  <Pressable 
+                  <Pressable
                     key={status}
                     style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: isSelected ? '#10B981' : '#E2E8F0', backgroundColor: isSelected ? '#F0FDF4' : '#FFFFFF' }}
                     onPress={() => setSelectedStatus(status)}
@@ -305,7 +378,7 @@ const OrderHistory = ({ onNavigate }) => {
               })}
             </View>
 
-            <Pressable 
+            <Pressable
               style={{ width: '100%', padding: 14, backgroundColor: '#10B981', borderRadius: 12, alignItems: 'center' }}
               onPress={() => setShowFilterModal(false)}
             >
@@ -316,10 +389,10 @@ const OrderHistory = ({ onNavigate }) => {
       </Modal>
 
 
-      <InvoiceHistoryModal 
-        isVisible={!!selectedInvoiceId} 
-        invoiceId={selectedInvoiceId} 
-        onClose={() => setSelectedInvoiceId(null)} 
+      <InvoiceHistoryModal
+        isVisible={!!selectedInvoiceId}
+        invoiceId={selectedInvoiceId}
+        onClose={() => setSelectedInvoiceId(null)}
       />
       <DatePicker
         modal
@@ -346,6 +419,13 @@ const OrderHistory = ({ onNavigate }) => {
         }}
         onCancel={() => {
           setOpenEndDatePicker(false);
+        }}
+      />
+      <NotificationModal
+        isVisible={showNotiModal}
+        onClose={() => {
+          setShowNotiModal(false);
+          loadNotiCount();
         }}
       />
     </View>

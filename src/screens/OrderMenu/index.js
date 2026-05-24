@@ -206,6 +206,7 @@ const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, reservation, cart
   const [submitting, setSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderError, setOrderError] = useState(null);
+  const [emptyCartAlert, setEmptyCartAlert] = useState(false);
 
   // Right pane state using locally provided cart
   const [tabletPopupData, setTabletPopupData] = useState(null);
@@ -231,9 +232,8 @@ const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, reservation, cart
   }, []);
 
   const handleOrder = async () => {
-    import('react-native').then(({ Alert }) => {
       if (items.length === 0) {
-        Alert.alert('Giỏ hàng rỗng', 'Vui lòng chọn món trước khi đặt.');
+        setEmptyCartAlert(true);
         return;
       }
 
@@ -244,7 +244,7 @@ const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, reservation, cart
           const loaiDonHang = isTakeaway ? "MANG_VE" : "TAI_BAN";
 
           if (!isTakeaway && !idPhieuDat) {
-            Alert.alert('Lỗi', `Không tìm thấy ID Phiếu Đặt Bàn cho bàn này. Vui lòng thử mở lại bàn.`);
+            setOrderError(`Không tìm thấy ID Phiếu Đặt Bàn cho bàn này. Vui lòng thử mở lại bàn.`);
             setSubmitting(false);
             return;
           }
@@ -281,7 +281,6 @@ const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, reservation, cart
         }
       }
       submitOrder();
-    });
   };
 
   const fetchInitialData = async () => {
@@ -490,7 +489,7 @@ const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, reservation, cart
             </View>
           </View>
 
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 24, paddingTop: 8 }}>
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 24, paddingTop: 8, paddingBottom: 120 }}>
 
             {/* BANNER PROMO */}
             {activeCat !== 'all' && (
@@ -623,6 +622,26 @@ const OrderMenu = ({ onNavigate, table, isTakeaway, invoiceId, reservation, cart
         </View>
       </Modal>
 
+      {/* EMPTY CART MODAL */}
+      <Modal visible={emptyCartAlert} transparent animationType="fade" statusBarTranslucent>
+        <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ backgroundColor: '#FFFFFF', width: 340, borderRadius: 24, padding: 32, alignItems: 'center' }}>
+            <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
+              <Text style={{ fontSize: 40 }}>🛒</Text>
+            </View>
+            <Text style={{ fontSize: 24, fontWeight: '800', color: '#1E293B', marginBottom: 8 }}>Giỏ hàng rỗng</Text>
+            <Text style={{ fontSize: 16, color: '#64748B', textAlign: 'center', marginBottom: 28 }}>Vui lòng chọn món trước khi đặt.</Text>
+
+            <Pressable
+              style={({ pressed }) => [{ width: '100%', paddingVertical: 16, borderRadius: 16, backgroundColor: '#F1F5F9', alignItems: 'center', opacity: pressed ? 0.8 : 1 }]}
+              onPress={() => setEmptyCartAlert(false)}
+            >
+              <Text style={{ color: '#475569', fontSize: 16, fontWeight: '700' }}>Đã hiểu</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       {/* FULL SCREEN SUBMITTING LOADING OVERLAY */}
       <Modal visible={submitting} transparent animationType="fade" statusBarTranslucent>
         <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)', justifyContent: 'center', alignItems: 'center' }}>
@@ -671,9 +690,9 @@ const s = StyleSheet.create({
   productGridItem: { marginBottom: 20 },
 
   // Card container (default) – glassmorphism style (Solid white to fix artifacts)
-  productCard: { borderRadius: 24, padding: 12, paddingBottom: 16, shadowColor: '#000', shadowOffset: { width: 2, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 6, borderWidth: 0.5, borderColor: '#E2E8F0', height: 310 },
+  productCard: { borderRadius: 24, padding: 12, paddingBottom: 16, shadowColor: '#000', shadowOffset: { width: 2, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 6, borderWidth: 0.5, borderColor: '#E2E8F0' },
   // Gradient background for selected card (45° diagonal)
-  cardGradient: { borderRadius: 24, padding: 12, paddingBottom: 16, shadowColor: '#15803D', shadowOffset: { width: 2, height: 4 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 8, borderWidth: 1, borderColor: '#15803D', height: 310 },
+  cardGradient: { borderRadius: 24, padding: 12, paddingBottom: 16, shadowColor: '#15803D', shadowOffset: { width: 2, height: 4 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 8, borderWidth: 1, borderColor: '#15803D' },
   productImageWrap: { width: '100%', aspectRatio: 1, borderRadius: 16, overflow: 'hidden', backgroundColor: 'transparent', marginBottom: 10 },
   productImage: { width: '100%', height: '100%' },
   // Discount tag displayed on top‑left of image when there is a discount

@@ -34,8 +34,27 @@ axiosClient.interceptors.response.use(
 
     if (error.response && error.response.data) {
       const data = error.response.data;
-      // Ưu tiên lấy message chi tiết, sau đó đến error, title hoặc detail
-      message = data.message || data.detail || data.error || data.title || (typeof data === 'string' ? data : message);
+      if (typeof data === 'string') {
+        message = data;
+      } else if (typeof data === 'object' && data !== null) {
+        if (data.errors && typeof data.errors === 'object') {
+          message = Object.values(data.errors)[0] || message;
+        } else if (data.message) {
+          message = data.message;
+        } else if (data.detail) {
+          message = data.detail;
+        } else if (data.error && typeof data.error === 'string') {
+          message = data.error;
+        } else if (data.title) {
+          message = data.title;
+        } else {
+          // If the backend returns a Map of field errors directly: { "matKhauMoi": "Mật khẩu mới..." }
+          const stringValues = Object.values(data).filter(val => typeof val === 'string');
+          if (stringValues.length > 0) {
+            message = stringValues[0];
+          }
+        }
+      }
     } else {
       message = error.message || message;
     }

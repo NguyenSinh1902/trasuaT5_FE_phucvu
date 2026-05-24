@@ -5,9 +5,32 @@ import LinearGradient from 'react-native-linear-gradient';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 /**
- * Toast thông báo đẩy nổi trên màn hình khi có món sẵn sàng.
+ * Toast thông báo đẩy nổi trên màn hình.
+ * Hỗ trợ nhiều loại: 'ready' (sẵn sàng), 'paid' (thanh toán), 'cancelled' (hủy đơn).
  * Tự động ẩn sau `duration` ms. Bấm vào để đóng sớm.
  */
+
+const TOAST_CONFIG = {
+  ready: {
+    colors: ['#065F46', '#047857'],
+    shadowColor: '#065F46',
+    icon: '🍵',
+    title: 'Món đã sẵn sàng!',
+  },
+  paid: {
+    colors: ['#1E3A5F', '#1D4ED8'],
+    shadowColor: '#1E40AF',
+    icon: '✅',
+    title: 'Đã thanh toán!',
+  },
+  cancelled: {
+    colors: ['#7F1D1D', '#DC2626'],
+    shadowColor: '#991B1B',
+    icon: '🚨',
+    title: 'Đơn hàng bị hủy!',
+  },
+};
+
 const ReadyToServeToast = ({ toast, onDismiss }) => {
   const translateY = useRef(new Animated.Value(-120)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -21,7 +44,7 @@ const ReadyToServeToast = ({ toast, onDismiss }) => {
       Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
     ]).start();
 
-    // Auto-dismiss sau 5 giây
+    // Auto-dismiss
     const timer = setTimeout(() => handleDismiss(), toast.duration || 5000);
     return () => clearTimeout(timer);
   }, [toast?.id]);
@@ -35,23 +58,24 @@ const ReadyToServeToast = ({ toast, onDismiss }) => {
 
   if (!toast) return null;
 
+  const config = TOAST_CONFIG[toast.type] || TOAST_CONFIG.ready;
+
   return (
     <Animated.View style={[styles.wrapper, { transform: [{ translateY }], opacity }]}>
-      <Pressable onPress={handleDismiss} style={styles.pressable}>
+      <Pressable onPress={handleDismiss} style={[styles.pressable, { shadowColor: config.shadowColor }]}>
         <LinearGradient
-          colors={['#065F46', '#047857']}
+          colors={config.colors}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.container}
         >
-          {/* Decorative pulse ring */}
           <View style={styles.iconWrap}>
-            <Text style={styles.icon}>🍵</Text>
+            <Text style={styles.icon}>{config.icon}</Text>
             <View style={styles.pingRing} />
           </View>
 
           <View style={styles.textWrap}>
-            <Text style={styles.title}>Món đã sẵn sàng!</Text>
+            <Text style={styles.title}>{config.title}</Text>
             <Text style={styles.body} numberOfLines={2}>{toast.message}</Text>
           </View>
 
@@ -77,7 +101,6 @@ const styles = StyleSheet.create({
   pressable: {
     width: Math.min(SCREEN_WIDTH - 32, 600),
     borderRadius: 20,
-    shadowColor: '#065F46',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35,
     shadowRadius: 20,
