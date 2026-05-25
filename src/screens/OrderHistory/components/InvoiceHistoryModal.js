@@ -30,18 +30,18 @@ const InvoiceHistoryModal = ({ isVisible, invoiceId, onClose }) => {
     }
   };
 
-  const getStatusLabel = (status) => {
+  const getStatusConfig = (status) => {
     const map = {
-      'CHO_XAC_NHAN': 'Chờ xác nhận',
-      'DANG_PHA_CHE': 'Đang pha chế',
-      'CHO_LAY_MON': 'Chờ lấy món',
-      'DANG_PHUC_VU': 'Đang phục vụ',
-      'CHO_THANH_TOAN': 'Chờ thanh toán',
-      'DA_THANH_TOAN': 'Đã thanh toán',
-      'HOAN_TAT': 'Hoàn tất',
-      'DA_HUY': 'Đã hủy',
+      'CHO_XAC_NHAN': { label: 'Chờ xác nhận', bg: '#F3F4F6', color: '#4A5565' },
+      'DANG_PHA_CHE': { label: 'Đang pha chế', bg: '#DCFCE7', color: '#059669' },
+      'CHO_LAY_MON': { label: 'Chờ lấy món', bg: '#FEF3C6', color: '#E17100' },
+      'DANG_PHUC_VU': { label: 'Đang phục vụ', bg: '#E0F2FE', color: '#0284C7' },
+      'CHO_THANH_TOAN': { label: 'Chờ thanh toán', bg: '#FEF3C6', color: '#E17100' },
+      'DA_THANH_TOAN': { label: 'Đã thanh toán', bg: '#DCFCE7', color: '#059669' },
+      'HOAN_TAT': { label: 'Hoàn tất', bg: '#DCFCE7', color: '#059669' },
+      'DA_HUY': { label: 'Đã hủy', bg: '#FFE2E2', color: '#E7000B' },
     };
-    return map[status] || status;
+    return map[status] || { label: status, bg: '#F3F4F6', color: '#4A5565' };
   };
 
   const formatTime = (isoString) => {
@@ -79,22 +79,34 @@ const InvoiceHistoryModal = ({ isVisible, invoiceId, onClose }) => {
               <View style={styles.infoGrid}>
                 <View style={styles.infoCard}>
                   <Text style={styles.infoLabel}>Trạng thái</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: '#DCFCE7' }]}>
-                    <Text style={styles.statusText}>{getStatusLabel(invoice.trangThai)}</Text>
+                  <View style={[styles.statusBadge, { backgroundColor: getStatusConfig(invoice.trangThai).bg }]}>
+                    <Text style={[styles.statusText, { color: getStatusConfig(invoice.trangThai).color }]}>
+                      {getStatusConfig(invoice.trangThai).label}
+                    </Text>
                   </View>
                 </View>
                 <View style={styles.infoCard}>
                   <Text style={styles.infoLabel}>Loại đơn</Text>
-                  <Text style={styles.infoValue}>{invoice.loaiDonHang === 'MANG_VE' ? 'Mang về' : 'Tại bàn'}</Text>
+                  <Text style={styles.infoValue}>{invoice.loaiDonHang === 'MANG_VE' ? 'Mang về' : `Tại bàn (${invoice.danhSachTenBan?.join(', ') || '---'})`}</Text>
                 </View>
                 <View style={styles.infoCard}>
-                  <Text style={styles.infoLabel}>Nhân viên</Text>
-                  <Text style={styles.infoValue}>{invoice.tenNhanVien || '---'}</Text>
+                  <Text style={styles.infoLabel}>Khách hàng</Text>
+                  <Text style={styles.infoValue}>{invoice.tenKhachHang || 'Khách vãng lai'}</Text>
                 </View>
                 <View style={styles.infoCard}>
                   <Text style={styles.infoLabel}>Thanh toán</Text>
                   <Text style={styles.infoValue}>{invoice.phuongThucThanhToan || 'Chưa thanh toán'}</Text>
                 </View>
+                <View style={styles.infoCard}>
+                  <Text style={styles.infoLabel}>Thu ngân</Text>
+                  <Text style={styles.infoValue}>{invoice.tenThuNgan || '---'}</Text>
+                </View>
+                {invoice.tenPhucVu && (
+                  <View style={styles.infoCard}>
+                    <Text style={styles.infoLabel}>Phục vụ</Text>
+                    <Text style={styles.infoValue}>{invoice.tenPhucVu}</Text>
+                  </View>
+                )}
               </View>
 
               {/* Items Table */}
@@ -115,6 +127,11 @@ const InvoiceHistoryModal = ({ isVisible, invoiceId, onClose }) => {
                           {Object.values(JSON.parse(item.tuyChonJson)).filter(v => v).join(' • ')}
                         </Text>
                       )}
+                      {item.danhSachTopping && item.danhSachTopping.length > 0 && (
+                        <Text style={styles.itemOptions}>
+                          + {item.danhSachTopping.map(t => `${t.tenSanPham || t.tenTopping}${t.soLuong > 1 ? ` (x${t.soLuong})` : ''}`).join(', ')}
+                        </Text>
+                      )}
                     </View>
                     <Text style={[styles.itemQty, { flex: 0.5 }]}>x{item.soLuong}</Text>
                     <Text style={[styles.itemPrice, { flex: 1 }]}>{item.thanhTien?.toLocaleString()}đ</Text>
@@ -128,10 +145,30 @@ const InvoiceHistoryModal = ({ isVisible, invoiceId, onClose }) => {
                   <Text style={styles.totalLabel}>Tiền hàng</Text>
                   <Text style={styles.totalValue}>{invoice.tongTienHang?.toLocaleString()}đ</Text>
                 </View>
-                <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>Thuế phí (VAT 8%)</Text>
-                  <Text style={styles.totalValue}>+{invoice.tongTienThue?.toLocaleString()}đ</Text>
-                </View>
+                {invoice.giamGiaKhuyenMai > 0 && (
+                  <View style={styles.totalRow}>
+                    <Text style={styles.totalLabel}>Khuyến mãi {invoice.maKhuyenMai ? `(${invoice.maKhuyenMai})` : ''}</Text>
+                    <Text style={[styles.totalValue, {color: '#059669'}]}>-{invoice.giamGiaKhuyenMai?.toLocaleString()}đ</Text>
+                  </View>
+                )}
+                {invoice.diemSuDung > 0 && (
+                  <View style={styles.totalRow}>
+                    <Text style={styles.totalLabel}>Dùng điểm</Text>
+                    <Text style={[styles.totalValue, {color: '#059669'}]}>-{(invoice.diemSuDung * 1000)?.toLocaleString()}đ</Text>
+                  </View>
+                )}
+                {invoice.giamGiaThanhVien > 0 && (
+                  <View style={styles.totalRow}>
+                    <Text style={styles.totalLabel}>Giảm giá thành viên</Text>
+                    <Text style={[styles.totalValue, {color: '#059669'}]}>-{invoice.giamGiaThanhVien?.toLocaleString()}đ</Text>
+                  </View>
+                )}
+                {invoice.danhSachThuePhi?.map((t, i) => (
+                  <View key={i} style={styles.totalRow}>
+                    <Text style={styles.totalLabel}>{t.tenThuePhi} {t.loaiGiaTri === 'PHAN_TRAM' ? `(${t.giaTriTaiThoiDiemBan}%)` : ''}</Text>
+                    <Text style={styles.totalValue}>+{t.soTienQuyDoi?.toLocaleString()}đ</Text>
+                  </View>
+                ))}
                 <View style={[styles.totalRow, styles.finalRow]}>
                   <Text style={styles.finalLabel}>TỔNG CỘNG</Text>
                   <Text style={styles.finalValue}>{invoice.tongThanhToan?.toLocaleString()}đ</Text>
