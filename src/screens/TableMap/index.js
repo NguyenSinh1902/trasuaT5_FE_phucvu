@@ -60,7 +60,7 @@ const TableMap = ({ onNavigate }) => {
       } else {
         setUnreadNotiCount(0);
       }
-    } catch (e) {}
+    } catch (e) { }
   }, []);
 
   // Sheets state
@@ -286,7 +286,7 @@ const TableMap = ({ onNavigate }) => {
             if (t.invoice) {
               const fbOrder = orderUpdates.find(o => o.idHoaDon == t.invoice.idHoaDon);
               if (fbOrder && shouldUpdate(t.invoice.trangThai, fbOrder.trangThai) &&
-                  (fbOrder.trangThai !== t.invoice.trangThai || fbOrder.tongThanhToan !== t.invoice.tongThanhToan)) {
+                (fbOrder.trangThai !== t.invoice.trangThai || fbOrder.tongThanhToan !== t.invoice.tongThanhToan)) {
 
                 // Toast: đơn vừa chuyển sang DA_THANH_TOAN (thanh toán thành công)
                 if (fbOrder.trangThai === 'DA_THANH_TOAN' && t.invoice.trangThai !== 'DA_THANH_TOAN') {
@@ -324,7 +324,7 @@ const TableMap = ({ onNavigate }) => {
             const fbOrder = orderUpdates.find(u => u.idHoaDon == o.idHoaDon);
             // Chỉ cập nhật nếu Firebase có trạng thái cao hơn hoặc bằng với local (không downgrade)
             if (fbOrder && shouldUpdate(o.trangThai, fbOrder.trangThai) &&
-                (fbOrder.trangThai !== o.trangThai || fbOrder.tongThanhToan !== o.tongThanhToan)) {
+              (fbOrder.trangThai !== o.trangThai || fbOrder.tongThanhToan !== o.tongThanhToan)) {
               return { ...o, trangThai: fbOrder.trangThai, tongThanhToan: fbOrder.tongThanhToan };
             }
             return o;
@@ -337,7 +337,7 @@ const TableMap = ({ onNavigate }) => {
 
             const existsInTakeaway = prevOrders.some(o => o.idHoaDon == fbOrder.idHoaDon);
             const existsInTable = tablesRef.current.some(t => t.invoice?.idHoaDon == fbOrder.idHoaDon);
-            
+
             if (!existsInTakeaway && !existsInTable) {
               // Đơn hàng chưa từng tồn tại trên bộ nhớ frontend -> cần lấy thông tin chi tiết
               hasNewOrder = true;
@@ -541,8 +541,8 @@ const TableMap = ({ onNavigate }) => {
       <Pressable
         key={t.idBan}
         style={[
-          styles.tabletTableCard, 
-          { 
+          styles.tabletTableCard,
+          {
             borderTopColor: s.baseColor,
             borderColor: hasGlow ? `${glowColor}66` : '#E5E7EB',
             borderWidth: hasGlow ? 2 : 1,
@@ -727,10 +727,10 @@ const TableMap = ({ onNavigate }) => {
         </Pressable>
       )}
       {/* Khuyến mãi - nút trên */}
-      <Pressable onPress={() => { 
+      <Pressable onPress={() => {
         const nextShow = !showPromo;
-        setShowPromo(nextShow); 
-        setShowStats(false); 
+        setShowPromo(nextShow);
+        setShowStats(false);
         if (nextShow) fetchPromotions();
       }}>
         <LinearGradient colors={['#F59E0B', '#D97706']} style={styles.premiumFab}>
@@ -795,7 +795,7 @@ const TableMap = ({ onNavigate }) => {
             </Pressable>
           </View>
           <View style={styles.promoModalDivider} />
-          
+
           {loadingPromo ? (
             <ActivityIndicator size="small" color="#F59E0B" style={{ marginVertical: 20 }} />
           ) : promotions.length > 0 ? (

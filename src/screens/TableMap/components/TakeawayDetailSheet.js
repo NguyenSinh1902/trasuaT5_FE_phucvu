@@ -10,6 +10,7 @@ const TakeawayDetailSheet = ({ invoice, onClose, onRefresh, onOpenMenu }) => {
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [selectedNote, setSelectedNote] = useState('');
+  const [alertConfig, setAlertConfig] = useState(null);
 
   const { width } = useWindowDimensions();
   const isTablet = width >= 700;
@@ -17,19 +18,24 @@ const TakeawayDetailSheet = ({ invoice, onClose, onRefresh, onOpenMenu }) => {
   if (!invoice) return null;
 
   const handleCancel = () => {
-    Alert.alert('Xác nhận hủy', `Hủy đơn mang về (Hóa đơn ${invoice.idHoaDon})?`, [
-      { text: 'Bỏ qua', style: 'cancel' },
-      { text: 'Đồng ý', style: 'destructive', onPress: async () => {
+    setAlertConfig({
+      type: 'confirm',
+      title: 'Xác nhận hủy',
+      message: `Hủy đơn mang về (Hóa đơn ${invoice.idHoaDon})?`,
+      confirmText: 'Đồng ý',
+      cancelText: 'Bỏ qua',
+      onConfirm: async () => {
+        setAlertConfig(null);
         setLoading(true);
         try {
           await orderApi.cancelOrder(invoice.idHoaDon);
           if (onRefresh) await onRefresh();
           onClose();
         } catch (err) {
-          Alert.alert('Lỗi', 'Không thể hủy đơn hàng.');
+          setTimeout(() => setAlertConfig({ type: 'error', title: 'Lỗi', message: 'Không thể hủy đơn hàng.' }), 500);
         } finally { setLoading(false); }
-      }}
-    ]);
+      }
+    });
   };
 
   const handleRequestPayment = async () => {
@@ -37,10 +43,9 @@ const TakeawayDetailSheet = ({ invoice, onClose, onRefresh, onOpenMenu }) => {
     try {
       await orderApi.requestPayment(invoice.idHoaDon);
       if (onRefresh) await onRefresh();
-      onClose();
-      Alert.alert('Thành công', 'Đã gửi yêu cầu thanh toán.');
+      setAlertConfig({ type: 'success', title: 'Thành công', message: 'Đã gửi yêu cầu thanh toán.', onConfirm: onClose });
     } catch (err) {
-      Alert.alert('Lỗi', 'Không thể gửi yêu cầu thanh toán.');
+      setAlertConfig({ type: 'error', title: 'Lỗi', message: 'Không thể gửi yêu cầu thanh toán.' });
     } finally { setLoading(false); }
   };
 
@@ -52,23 +57,30 @@ const TakeawayDetailSheet = ({ invoice, onClose, onRefresh, onOpenMenu }) => {
       const itemId = item.idChiTiet || item.idChiTietHoaDon;
       await orderApi.editItemInInvoice(invoice.idHoaDon, itemId, { soLuong: newQty, tuyChonJson: item.tuyChonJson });
       if (onRefresh) await onRefresh();
-    } catch (err) { Alert.alert('Lỗi', 'Không thể cập nhật số lượng.'); }
+    } catch (err) { setAlertConfig({ type: 'error', title: 'Lỗi', message: 'Không thể cập nhật số lượng.' }); }
     finally { setEditing(false); }
   };
 
   const handleDeleteItem = (item) => {
-    Alert.alert('Xóa món', `Xóa ${item.tenSanPham}?`, [
-      { text: 'Hủy' },
-      { text: 'Xóa', style: 'destructive', onPress: async () => {
+    setAlertConfig({
+      type: 'confirm',
+      title: 'Xóa món',
+      message: `Bạn có chắc chắn muốn xóa ${item.tenSanPham} khỏi đơn hàng?`,
+      confirmText: 'Xóa',
+      cancelText: 'Hủy',
+      onConfirm: async () => {
+        setAlertConfig(null);
         setEditing(true);
         try {
           const itemId = item.idChiTiet || item.idChiTietHoaDon;
           await orderApi.deleteItemFromInvoice(invoice.idHoaDon, itemId);
           if (onRefresh) await onRefresh();
-        } catch (err) { Alert.alert('Lỗi', 'Không thể xóa món.'); }
+        } catch (err) {
+          setTimeout(() => setAlertConfig({ type: 'error', title: 'Lỗi', message: 'Không thể xóa món.' }), 500);
+        }
         finally { setEditing(false); }
-      }}
-    ]);
+      }
+    });
   };
 
   const handleOpenEdit = (item) => {
@@ -93,7 +105,7 @@ const TakeawayDetailSheet = ({ invoice, onClose, onRefresh, onOpenMenu }) => {
       });
       if (onRefresh) await onRefresh();
       setIsEditModalVisible(false);
-    } catch (err) { Alert.alert('Lỗi', 'Không thể lưu.'); }
+    } catch (err) { setAlertConfig({ type: 'error', title: 'Lỗi', message: 'Không thể lưu ghi chú.' }); }
     finally { setEditing(false); }
   };
 
@@ -251,6 +263,61 @@ const TakeawayDetailSheet = ({ invoice, onClose, onRefresh, onOpenMenu }) => {
             <ActivityIndicator size="large" color="#34A853" />
           </View>
         )}
+
+        {/* CUSTOM ALERT MODAL */}
+        <Modal visible={!!alertConfig} transparent animationType="fade" statusBarTranslucent>
+          <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}>
+            <View style={{ backgroundColor: '#FFFFFF', width: 340, borderRadius: 24, padding: 32, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.2, shadowRadius: 24, elevation: 10 }}>
+              {alertConfig?.type === 'success' && (
+                <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#D1FAE5', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
+                  <Text style={{ fontSize: 40 }}>✅</Text>
+                </View>
+              )}
+              {alertConfig?.type === 'error' && (
+                <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
+                  <Text style={{ fontSize: 40 }}>❌</Text>
+                </View>
+              )}
+              {alertConfig?.type === 'confirm' && (
+                <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
+                  <Text style={{ fontSize: 40 }}>⚠️</Text>
+                </View>
+              )}
+              
+              <Text style={{ fontSize: 24, fontWeight: '800', color: '#1E293B', marginBottom: 8, textAlign: 'center' }}>{alertConfig?.title}</Text>
+              <Text style={{ fontSize: 16, color: '#64748B', textAlign: 'center', marginBottom: 28, lineHeight: 24 }}>{alertConfig?.message}</Text>
+              
+              {alertConfig?.type === 'confirm' ? (
+                <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+                  <Pressable
+                    style={({ pressed }) => [{ flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#F1F5F9', alignItems: 'center', opacity: pressed ? 0.8 : 1 }]}
+                    onPress={() => setAlertConfig(null)}
+                  >
+                    <Text style={{ color: '#475569', fontSize: 16, fontWeight: '700' }}>{alertConfig.cancelText || 'Hủy'}</Text>
+                  </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [{ flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#EF4444', alignItems: 'center', opacity: pressed ? 0.8 : 1 }]}
+                    onPress={alertConfig.onConfirm}
+                  >
+                    <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700' }}>{alertConfig.confirmText || 'Đồng ý'}</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable
+                  style={({ pressed }) => [{ width: '100%', paddingVertical: 16, borderRadius: 16, backgroundColor: alertConfig?.type === 'success' ? '#10B981' : '#F1F5F9', alignItems: 'center', opacity: pressed ? 0.8 : 1 }]}
+                  onPress={() => {
+                    const onConfirm = alertConfig.onConfirm;
+                    setAlertConfig(null);
+                    if (onConfirm) onConfirm();
+                  }}
+                >
+                  <Text style={{ color: alertConfig?.type === 'success' ? '#FFFFFF' : '#475569', fontSize: 16, fontWeight: '700' }}>Đóng lại</Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
+        </Modal>
+
       </View>
     </Modal>
   );
