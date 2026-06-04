@@ -30,6 +30,10 @@ const { width: windowWidth } = Dimensions.get('window');
 
 import { useFocusEffect } from '@react-navigation/native';
 
+// Khai báo global để giữ lại trạng thái đã thông báo kể cả khi Component bị unmount (khi chuyển tab)
+const globalNotifiedOrders = new Set();
+let isFirstOrderFetch = true; // Tránh báo lại các đơn cũ khi app vừa mở lên
+
 const TableMap = ({ onNavigate }) => {
   const { width } = useWindowDimensions();
   const isTablet = width >= 700;
@@ -74,7 +78,6 @@ const TableMap = ({ onNavigate }) => {
   const firebaseListenerRef = useRef(null);
   const ordersListenerRef = useRef(null);
   const isInitialLoad = useRef(true);
-  const notifiedOrdersRef = useRef(new Set()); // track orders đã thông báo
   const tablesRef = useRef([]); // ref để truy cập tables trong callback
 
   // Toast state
@@ -260,23 +263,28 @@ const TableMap = ({ onNavigate }) => {
 
           // Toast: món đã sẵn sàng (CHO_LAY_MON)
           // An toàn vì trạng thái này chỉ tồn tại ngắn, ít bị stale
-          if (order.trangThai === 'CHO_LAY_MON' && !notifiedOrdersRef.current.has(key)) {
-            notifiedOrdersRef.current.add(key);
+          if (order.trangThai === 'CHO_LAY_MON' && !globalNotifiedOrders.has(key)) {
+            globalNotifiedOrders.add(key);
 
-            const matchedTable = tablesRef.current.find(
-              t => t.invoice?.idHoaDon == order.idHoaDon
-            );
-            const tableName = matchedTable?.tenBan || `Đơn #${order.idHoaDon}`;
+            // Bỏ qua toast nếu đây là lần load Firebase đầu tiên lúc mở app (đơn cũ tồn đọng)
+            if (!isFirstOrderFetch) {
+              const matchedTable = tablesRef.current.find(
+                t => t.invoice?.idHoaDon == order.idHoaDon
+              );
+              const tableName = matchedTable?.tenBan || `Đơn #${order.idHoaDon}`;
 
-            setActiveToast({
-              id: key,
-              type: 'ready',
-              message: `${tableName} — Đồ uống đã pha xong, ra quầy lấy món nhé!`,
-              duration: 6000,
-            });
-            pushNotification({ title: 'Món đã sẵn sàng', message: `${tableName} — Đồ uống đã pha xong!`, type: 'order' }).then(loadNotiCount);
+              setActiveToast({
+                id: key,
+                type: 'ready',
+                message: `${tableName} — Đồ uống đã pha xong, ra quầy lấy món nhé!`,
+                duration: 6000,
+              });
+              pushNotification({ title: 'Món đã sẵn sàng', message: `${tableName} — Đồ uống đã pha xong!`, type: 'order' }).then(loadNotiCount);
+            }
           }
         });
+        
+        isFirstOrderFetch = false;
 
         // Cập nhật trạng thái đơn hàng trên bàn
         // Toast thanh toán/hủy được detect tại đây để so sánh old vs new status chính xác

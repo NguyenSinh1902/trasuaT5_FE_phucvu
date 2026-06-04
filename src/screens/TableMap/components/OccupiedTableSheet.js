@@ -9,7 +9,7 @@ const OccupiedTableSheet = ({ table, tables, onClose, onUpdateGuest, onRefresh, 
   const [actionType, setActionType] = useState(null); // 'merge', 'change', null
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showPaymentConfirm, setShowPaymentConfirm] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState(null);
   const [paymentError, setPaymentError] = useState(null);
   const { width } = useWindowDimensions();
   const isTablet = width >= 700;
@@ -104,13 +104,32 @@ const OccupiedTableSheet = ({ table, tables, onClose, onUpdateGuest, onRefresh, 
     try {
       await orderApi.requestPayment(invoiceId);
       if (onRefresh) await onRefresh();
-      setPaymentSuccess(true);
+      setSuccessMessage('Đã gửi yêu cầu thanh toán tới Thu Ngân.');
       setTimeout(() => {
-        setPaymentSuccess(false);
+        setSuccessMessage(null);
         onClose();
       }, 1500);
     } catch (err) {
       setPaymentError('Không thể gửi yêu cầu thanh toán. Vui lòng thử lại sau.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBungRaBan = async () => {
+    const invoiceId = table.invoice?.idHoaDon;
+    if (!invoiceId) return;
+    setLoading(true);
+    try {
+      await orderApi.updateStatus(invoiceId, 'DANG_PHUC_VU');
+      if (onRefresh) await onRefresh();
+      setSuccessMessage('Đã cập nhật trạng thái phục vụ.');
+      setTimeout(() => {
+        setSuccessMessage(null);
+        onClose();
+      }, 1500);
+    } catch (err) {
+      setPaymentError('Không thể cập nhật trạng thái. Vui lòng thử lại sau.');
     } finally {
       setLoading(false);
     }
@@ -175,9 +194,10 @@ const OccupiedTableSheet = ({ table, tables, onClose, onUpdateGuest, onRefresh, 
           {/* HEADER */}
           <View style={{ marginBottom: 28 }}>
             <Text style={{ fontSize: isTablet ? 32 : 28, fontWeight: '900', color: '#1E293B', marginBottom: 4 }}>{table.tenBan || 'Bàn không tên'}</Text>
-            <Text style={{ fontSize: isTablet ? 18 : 16, fontWeight: '700', color: table.invoice?.trangThai === 'CHO_THANH_TOAN' ? '#D97706' : '#059669' }}>
-              {table.invoice?.trangThai === 'CHO_THANH_TOAN' ? 'Chở Thanh Toán 🔔' :
-                table.invoice?.trangThai === 'DA_THANH_TOAN' ? 'Đã Thanh Toán' : 'Đang Phục Vụ'}
+            <Text style={{ fontSize: isTablet ? 18 : 16, fontWeight: '700', color: table.invoice?.trangThai === 'CHO_LAY_MON' ? '#7C3AED' : table.invoice?.trangThai === 'CHO_THANH_TOAN' ? '#D97706' : '#059669' }}>
+              {table.invoice?.trangThai === 'CHO_LAY_MON' ? '🔔 Chờ lấy món' :
+               table.invoice?.trangThai === 'CHO_THANH_TOAN' ? 'Chờ Thanh Toán 🔔' :
+               table.invoice?.trangThai === 'DA_THANH_TOAN' ? 'Đã Thanh Toán' : 'Đang Phục Vụ'}
             </Text>
           </View>
 
@@ -257,20 +277,30 @@ const OccupiedTableSheet = ({ table, tables, onClose, onUpdateGuest, onRefresh, 
               </Text>
             </LinearGradient>
 
-            {/* ACTION BOTTOM (Hủy & Thanh toán - nằm bên phải) */}
-            <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'flex-end' }}>
-              {/* Cảnh báo: Hủy Phiếu đặt */}
+            {/* ACTION BOTTOM */}
+            <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              {/* Nút Bưng Ra Bàn - CHỄ hiện khi CHO_LAY_MON */}
+              {table.invoice?.trangThai === 'CHO_LAY_MON' && (
+                <ActionButton
+                  title="Đã bưng ra bàn" icon="🏃" gradient={['#6EE7B7', '#059669']} textColor="#FFFFFF" shadowColor="#10B981"
+                  horizontal containerStyle={{ paddingHorizontal: 20, height: 55 }}
+                  onPress={handleBungRaBan}
+                />
+              )}
+              {/* Hủy phiếu */}
               <ActionButton
                 title="Hủy phiếu" icon="⊗" gradient={['#FEF2F2', '#FEE2E2']} textColor="#B91C1C" borderColor="#FECACA" shadowColor="#F87171"
                 horizontal containerStyle={{ paddingHorizontal: 20, height: 55 }}
                 onPress={handleCancelClick}
               />
-              {/* Hành động lõi: Yêu cầu Thanh toán */}
-              <ActionButton
-                title="Yêu cầu thanh toán" icon="💳" gradient={['#FDE68A', '#F59E0B']} textColor="#78350F" shadowColor="#D97706"
-                horizontal containerStyle={{ paddingHorizontal: 24, height: 55 }}
-                onPress={handleRequestPaymentClick}
-              />
+              {/* Yêu cầu thanh toán - Ẩn khi CHO_LAY_MON vì chưa phục vụ xong */}
+              {table.invoice?.trangThai !== 'CHO_LAY_MON' && (
+                <ActionButton
+                  title="Yêu cầu thanh toán" icon="💳" gradient={['#FDE68A', '#F59E0B']} textColor="#78350F" shadowColor="#D97706"
+                  horizontal containerStyle={{ paddingHorizontal: 24, height: 55 }}
+                  onPress={handleRequestPaymentClick}
+                />
+              )}
             </View>
           </View>
 
@@ -340,15 +370,15 @@ const OccupiedTableSheet = ({ table, tables, onClose, onUpdateGuest, onRefresh, 
             </View>
           )}
 
-          {/* PAYMENT SUCCESS OVERLAY */}
-          {paymentSuccess && (
+          {/* SUCCESS OVERLAY */}
+          {!!successMessage && (
             <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 210, borderRadius: 24 }}>
                <View style={{ backgroundColor: '#FFFFFF', width: isTablet ? 360 : '85%', borderRadius: 24, padding: 32, alignItems: 'center', shadowColor: '#10B981', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.2, shadowRadius: 24, elevation: 10 }}>
                   <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#D1FAE5', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
                      <Text style={{ fontSize: 40 }}>✅</Text>
                   </View>
                   <Text style={{ fontSize: 22, fontWeight: '800', color: '#1E293B', marginBottom: 8 }}>Thành công!</Text>
-                  <Text style={{ fontSize: 15, color: '#64748B', textAlign: 'center' }}>Đã gửi yêu cầu thanh toán.</Text>
+                  <Text style={{ fontSize: 15, color: '#64748B', textAlign: 'center' }}>{successMessage}</Text>
                </View>
             </View>
           )}

@@ -255,6 +255,21 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
     });
   };
 
+  const handleBungRaBan = async () => {
+    if (!invoice?.idHoaDon) return;
+    showConfirm('Phục vụ', 'Xác nhận đã bưng món ra bàn?', async () => {
+      setLoading(true);
+      try {
+        await orderApi.updateStatus(invoice.idHoaDon, 'DANG_PHUC_VU');
+        await fetchInvoice();
+        if (onRefresh) onRefresh();
+        showToast('Đã chuyển trạng thái Đang phục vụ.', 'success');
+      } catch (err) {
+        showToast('Có lỗi xảy ra khi cập nhật.', 'error');
+      } finally { setLoading(false); }
+    });
+  };
+
   if (!table) return null;
 
   return (
@@ -372,7 +387,15 @@ const InvoiceDetailSheet = ({ table, onClose, onRefresh, onOpenMenu }) => {
                       onPress={() => { onOpenMenu([table], table?.reservation?.idPhieuDat || table?.idPhieuDatTemp, false, invoice?.idHoaDon); onClose(); }} 
                    />
                    
-                   {invoice.trangThai !== 'CHO_THANH_TOAN' && (
+                   {invoice.trangThai === 'CHO_LAY_MON' && invoice.loaiDonHang !== 'MANG_VE' && (
+                      <ActionButton 
+                         title="Đã bưng ra bàn" icon="🏃" gradient={['#6EE7B7', '#059669']} textColor="#FFFFFF" shadowColor="#10B981"
+                         horizontal containerStyle={{ flex: 1.8, height: 54 }} 
+                         onPress={handleBungRaBan} disabled={loading}
+                      />
+                   )}
+
+                   {invoice.trangThai !== 'CHO_THANH_TOAN' && invoice.trangThai !== 'CHO_LAY_MON' && (
                       <ActionButton 
                          title="Yêu cầu thanh toán" icon="💳" gradient={['#FCD34D', '#F59E0B']} textColor="#78350F" shadowColor="#D97706"
                          horizontal containerStyle={{ flex: 1.8, height: 54 }} 

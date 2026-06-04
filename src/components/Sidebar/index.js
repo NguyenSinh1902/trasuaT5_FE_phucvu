@@ -59,7 +59,8 @@ const Sidebar = ({
         end={{ x: 1, y: 1 }} 
         style={[styles.tabletNavContainer, isCollapsed && styles.tabletNavContainerCollapsed]}
       >
-        {renderNavItem('TableMap', 'Trang chủ', '🏠')}
+        {renderNavItem('TableMap', 'Sơ đồ bàn', '🏠')}
+        {renderNavItem('OnlineBookings', 'Đặt bàn Online', '🔔')}
         {renderNavItem('OrderHistory', 'Lịch sử đơn hàng', '📋')}
         {renderNavItem('Settings', 'Cài đặt', '⚙️')}
       </LinearGradient>

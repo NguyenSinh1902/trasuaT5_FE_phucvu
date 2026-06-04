@@ -29,9 +29,15 @@ const TOAST_CONFIG = {
     icon: '🚨',
     title: 'Đơn hàng bị hủy!',
   },
+  booking: {
+    colors: ['#8B5CF6', '#7C3AED'], // Tím nổi bật
+    shadowColor: '#6D28D9',
+    icon: '🔔',
+    title: 'Yêu cầu đặt bàn!',
+  }
 };
 
-const ReadyToServeToast = ({ toast, onDismiss }) => {
+const ReadyToServeToast = ({ toast, onDismiss, onPress }) => {
   const translateY = useRef(new Animated.Value(-120)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -55,6 +61,13 @@ const ReadyToServeToast = ({ toast, onDismiss }) => {
       Animated.timing(opacity, { toValue: 0, duration: 250, useNativeDriver: true }),
     ]).start(() => onDismiss && onDismiss(toast?.id));
   };
+  
+  const handlePress = () => {
+    if (onPress) {
+       onPress(toast);
+    }
+    handleDismiss();
+  };
 
   if (!toast) return null;
 
@@ -62,7 +75,7 @@ const ReadyToServeToast = ({ toast, onDismiss }) => {
 
   return (
     <Animated.View style={[styles.wrapper, { transform: [{ translateY }], opacity }]}>
-      <Pressable onPress={handleDismiss} style={[styles.pressable, { shadowColor: config.shadowColor }]}>
+      <Pressable onPress={handlePress} style={[styles.pressable, { shadowColor: config.shadowColor }]}>
         <LinearGradient
           colors={config.colors}
           start={{ x: 0, y: 0 }}
@@ -79,9 +92,9 @@ const ReadyToServeToast = ({ toast, onDismiss }) => {
             <Text style={styles.body} numberOfLines={2}>{toast.message}</Text>
           </View>
 
-          <View style={styles.closeBtn}>
+          <Pressable style={styles.closeBtn} onPress={handleDismiss}>
             <Text style={styles.closeText}>✕</Text>
-          </View>
+          </Pressable>
         </LinearGradient>
       </Pressable>
     </Animated.View>

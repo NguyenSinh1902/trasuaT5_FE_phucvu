@@ -3,6 +3,7 @@
  */
 
 import { AppRegistry, LogBox } from 'react-native';
+import '@react-native-firebase/app';
 import App from './App';
 
 LogBox.ignoreAllLogs();

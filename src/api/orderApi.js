@@ -25,6 +25,9 @@ const orderApi = {
   requestPayment: (idHoaDon) => {
     return axiosClient.patch(`/hoa-don/${idHoaDon}/yeu-cau-thanh-toan`);
   },
+  updateStatus: (id, trangThai) => {
+    return axiosClient.patch(`/hoa-don/${id}/trang-thai?trangThai=${trangThai}`);
+  },
 };
 
 export default orderApi;
